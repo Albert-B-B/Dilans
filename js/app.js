@@ -189,8 +189,8 @@
         const winningItem = pool[Math.floor(Math.random() * pool.length)];
         currentWinner = winningItem;
 
-        // Build strip of 46 items leading up to the winner for a longer, high-speed spin
-        const totalReelItems = 46;
+        // Build strip of 56 items leading up to the winner for an epic high-anticipation spin
+        const totalReelItems = 56;
         const itemsSequence = [];
 
         for (let i = 0; i < totalReelItems - 1; i++) {
@@ -216,9 +216,9 @@
         const viewportHeight = reelViewport.getBoundingClientRect().height;
         const targetScrollY = (targetCenterIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
 
-        // 5.6 seconds spin duration for maximum party suspense
-        const spinDuration = 5600; // ms
-        reelStrip.style.transition = `transform ${spinDuration}ms cubic-bezier(0.08, 0.85, 0.18, 1)`;
+        // 7.2 seconds spin duration with an agonizing, suspenseful crawl over the final few dishes
+        const spinDuration = 7200; // ms
+        reelStrip.style.transition = `transform ${spinDuration}ms cubic-bezier(0.05, 0.92, 0.12, 1)`;
         reelStrip.style.transform = `translateY(-${targetScrollY}px)`;
 
         // Audio clicks synchronized with deceleration
@@ -248,17 +248,17 @@
         }, spinDuration + 100);
     }
 
-    // Mechanical ticking simulator with dramatic ease-out slowdown
+    // Mechanical ticking simulator with smooth organic deceleration
     function playDeceleratingClicks(totalDuration) {
         const startTime = performance.now();
 
         function scheduleNext() {
-            if (performance.now() - startTime >= totalDuration - 200) return;
-            playTick(1 + Math.random() * 0.2);
+            if (performance.now() - startTime >= totalDuration - 250) return;
+            playTick(1 + Math.random() * 0.15);
 
             const progress = (performance.now() - startTime) / totalDuration;
-            // Starts fast (35ms) and stretches out to ~550ms+ at the end for nail-biting suspense
-            const delay = 35 + Math.pow(progress, 3) * 550;
+            // Starts as a gentle rolling rhythm (~60ms) and spaces out to ~750ms+ on the final crawl
+            const delay = 60 + Math.pow(progress, 3.2) * 750;
 
             setTimeout(scheduleNext, delay);
         }

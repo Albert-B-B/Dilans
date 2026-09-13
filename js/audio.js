@@ -26,7 +26,7 @@
         return isMuted;
     }
 
-    // Mechanical roulette/slot tick
+    // Mechanical soft wooden/felt click (warm and satisfying, not harsh)
     function playTick(pitchMultiplier = 1) {
         if (isMuted) return;
         const ctx = getAudioContext();
@@ -35,20 +35,28 @@
         try {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
 
-            osc.type = 'triangle';
-            const freq = (380 + Math.random() * 40) * pitchMultiplier;
-            osc.frequency.setValueAtTime(freq, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.04);
+            // Lowpass filter removes any piercing high frequencies
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, ctx.currentTime);
 
-            gain.gain.setValueAtTime(0.18, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+            // Sine wave starting with a quick gentle transient drop (210Hz -> 55Hz)
+            osc.type = 'sine';
+            const baseFreq = (200 + Math.random() * 25) * pitchMultiplier;
+            osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.025);
 
-            osc.connect(gain);
+            // Soft volume envelope: gentle tactile click
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
+
+            osc.connect(filter);
+            filter.connect(gain);
             gain.connect(ctx.destination);
 
-            osc.start();
-            osc.stop(ctx.currentTime + 0.04);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.03);
         } catch (e) {
             console.warn('Audio tick error', e);
         }
