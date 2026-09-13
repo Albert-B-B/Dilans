@@ -18,6 +18,9 @@
     const choiceActions = document.getElementById('choice-actions');
     const btnAccept = document.getElementById('btn-accept');
     const btnBeerbong = document.getElementById('btn-beerbong');
+    const beerbongActions = document.getElementById('beerbong-actions');
+    const btnBeerbongDone = document.getElementById('btn-beerbong-done');
+    const btnBeerbongCancel = document.getElementById('btn-beerbong-cancel');
 
     const outcomePanel = document.getElementById('outcome-panel');
     const outcomeCategory = document.getElementById('outcome-category');
@@ -179,7 +182,9 @@
         isSpinning = true;
         spinBtn.disabled = true;
         choiceActions.classList.remove('visible');
+        beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('winner');
+        outcomePanel.classList.remove('drinking-mode');
 
         outcomeTitle.textContent = '🎰 Spinner skæbnen...';
         outcomeDesc.textContent = 'Gør ølbongen klar hvis du rammer ved siden af!';
@@ -272,19 +277,40 @@
         spinRoulette();
     });
 
-    // 🍺 Tag Ølbong & Re-spin
+    // 🍺 Tag Ølbong (Trin 1: Øl hældes op og bundes)
     btnBeerbong.addEventListener('click', () => {
         if (isSpinning) return;
         currentBeerBongCount++;
         playBeerBong();
 
-        outcomeTitle.textContent = `🍺 ØLBONG #${currentBeerBongCount} BUNDET!`;
-        outcomeDesc.textContent = `Respin starter nu...`;
-        beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
+        const rawName = playerNameInput.value.trim();
+        const playerName = rawName || 'Spiller';
 
-        setTimeout(() => {
-            spinRoulette();
-        }, 500);
+        choiceActions.classList.remove('visible');
+        beerbongActions.classList.add('visible');
+        outcomePanel.classList.add('drinking-mode');
+
+        outcomeCategory.textContent = '🍺 ØLBONG TID!';
+        outcomeTitle.textContent = `🍺 BUND ØLBONGEN, ${playerName.toUpperCase()}!`;
+        outcomeDesc.textContent = `Hæld øllen op og bund den foran køkkenet! Tryk på knappen nedenfor når den er nede, for at tage dit re-spin.`;
+        beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
+    });
+
+    // 🎰 Ølbong bunden - start spin igen (Trin 2)
+    btnBeerbongDone.addEventListener('click', () => {
+        if (isSpinning) return;
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        spinRoulette();
+    });
+
+    // Fortryd ølbong og behold retten
+    btnBeerbongCancel.addEventListener('click', () => {
+        if (isSpinning) return;
+        currentBeerBongCount = Math.max(0, currentBeerBongCount - 1);
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        btnAccept.click();
     });
 
     // 🍕 Accepter Ret
@@ -315,6 +341,8 @@
         playerNameInput.value = '';
         beerbongTally.textContent = '';
         choiceActions.classList.remove('visible');
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
         spinBtn.disabled = false;
 
         outcomePanel.classList.remove('winner');

@@ -491,6 +491,76 @@ body {
     background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
 }
 
+/* Two-Step Beerbong In-Progress Actions */
+.beerbong-actions {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.beerbong-actions.visible {
+    display: flex;
+}
+
+.btn-beerbong-done {
+    width: 100%;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #0b0f19;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.25rem;
+    font-weight: 900;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 8px 25px var(--neon-amber-glow);
+    transition: all var(--transition-speed);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    animation: pulse-beerbong 1.6s infinite ease-in-out;
+}
+
+@keyframes pulse-beerbong {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.btn-beerbong-done:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(245, 158, 11, 0.7);
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.btn-beerbong-cancel {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all var(--transition-speed);
+}
+
+.btn-beerbong-cancel:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.outcome-panel.drinking-mode {
+    border-color: var(--neon-amber);
+    background: rgba(245, 158, 11, 0.1);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+}
+
 /* Kitchen Order Summary Card */
 .order-card {
     width: 100%;
