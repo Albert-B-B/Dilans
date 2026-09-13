@@ -290,13 +290,13 @@
         beerbongActions.classList.add('visible');
         outcomePanel.classList.add('drinking-mode');
 
-        outcomeCategory.textContent = '🍺 ØLBONG TID!';
-        outcomeTitle.textContent = `🍺 BUND ØLBONGEN, ${playerName.toUpperCase()}!`;
-        outcomeDesc.textContent = `Hæld øllen op og bund den foran køkkenet! Tryk på knappen nedenfor når den er nede, for at tage dit re-spin.`;
+        outcomeCategory.textContent = '🍺 ØLBONG';
+        outcomeTitle.textContent = `🍺 Ølbong valgt (${playerName})`;
+        outcomeDesc.textContent = `Tryk på knappen nedenfor når du er klar til dit re-spin.`;
         beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
     });
 
-    // 🎰 Ølbong bunden - start spin igen (Trin 2)
+    // 🎰 Ølbong bundet - start spin igen (Trin 2)
     btnBeerbongDone.addEventListener('click', () => {
         if (isSpinning) return;
         beerbongActions.classList.remove('visible');
