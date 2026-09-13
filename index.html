@@ -89,14 +89,18 @@
                 </div>
             </div>
             <div class="order-actions">
-                <button id="copy-orders-btn" class="btn-secondary">📋 Kopier Bestilling</button>
-                <button id="clear-orders-btn" class="btn-secondary btn-danger">🗑️ Ryd</button>
+                <button id="copy-orders-btn" class="btn-copy">📋 Kopier Bestilling</button>
             </div>
         </div>
 
         <ul id="order-list" class="order-list">
             <!-- Dynamic order items inserted here -->
         </ul>
+
+        <div class="order-footer">
+            <span class="order-footer-note">🔒 Gemt lokalt på denne enhed</span>
+            <button id="clear-orders-btn" class="btn-clear-subtle" title="Nulstil hele listen">Nulstil bestilling</button>
+        </div>
     </section>
 
     <!-- App Logic Scripts (Supports direct file:// and http://) -->

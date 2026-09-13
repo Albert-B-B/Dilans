@@ -319,60 +319,112 @@
             return;
         }
 
-        orders.forEach((order, index) => {
-            const li = document.createElement('li');
-            li.className = 'order-item';
+        // Aggregate by itemId
+        const groups = {};
+        orders.forEach((order) => {
+            if (!groups[order.itemId]) {
+                groups[order.itemId] = {
+                    itemId: order.itemId,
+                    itemName: order.itemName,
+                    category: order.category,
+                    desc: order.desc,
+                    entries: []
+                };
+            }
+            groups[order.itemId].entries.push(order);
+        });
 
-            const beerBadge = order.beerbongs > 0
-                ? `<span class="order-beer-tag">🍺 x${order.beerbongs}</span>`
-                : '';
+        // Render each dish group
+        Object.values(groups).forEach((group) => {
+            const li = document.createElement('li');
+            li.className = 'order-group';
+
+            const qty = group.entries.length;
+            const qtyBadge = `<span class="order-qty-pill">${qty} stk</span>`;
+
+            // Individual buyer chips
+            const buyersHtml = group.entries.map((entry) => {
+                const beerTag = entry.beerbongs > 0 ? `<span class="buyer-beer">🍺 x${entry.beerbongs}</span>` : '';
+                return `
+                    <span class="buyer-chip">
+                        <span class="buyer-name">${escapeHtml(entry.player)}</span>
+                        ${beerTag}
+                        <button class="remove-buyer-btn" title="Fjern ${escapeHtml(entry.player)}s bestilling" data-order-id="${entry.id}">✕</button>
+                    </span>
+                `;
+            }).join('');
 
             li.innerHTML = `
-                <div class="order-left">
-                    <span class="order-person">${escapeHtml(order.player)}:</span>
-                    <span class="order-dish">#${escapeHtml(order.itemId)} ${escapeHtml(order.itemName)}</span>
-                    <span class="order-dish-id">${order.category ? `(${escapeHtml(order.category)})` : ''}</span>
+                <div class="order-group-header">
+                    <div class="order-group-title">
+                        <span class="order-dish-num">#${escapeHtml(group.itemId)}</span>
+                        <span class="order-dish-name">${escapeHtml(group.itemName)}</span>
+                        ${group.category ? `<span class="order-dish-category">${escapeHtml(group.category)}</span>` : ''}
+                    </div>
+                    ${qtyBadge}
                 </div>
-                <div class="order-right">
-                    ${beerBadge}
-                    <button class="delete-order-btn" title="Fjern bestilling" data-index="${index}">✕</button>
+                <div class="order-buyers-list">
+                    ${buyersHtml}
                 </div>
             `;
 
-            li.querySelector('.delete-order-btn').addEventListener('click', () => {
-                orders.splice(index, 1);
-                saveOrders();
-                renderOrders();
+            // Attach individual delete event listeners
+            li.querySelectorAll('.remove-buyer-btn').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = Number(e.currentTarget.getAttribute('data-order-id'));
+                    orders = orders.filter(o => o.id !== orderId);
+                    saveOrders();
+                    renderOrders();
+                });
             });
 
             orderListEl.appendChild(li);
         });
     }
 
-    // Copy Order to Clipboard
+    // Copy Order to Clipboard (Aggregated for pizzeria + Detailed per person)
     copyOrdersBtn.addEventListener('click', async () => {
         if (orders.length === 0) {
             alert('Der er ingen retter på bestillingslisten endnu.');
             return;
         }
 
+        // 1. Group items for pizzeria
+        const groups = {};
+        orders.forEach((o) => {
+            if (!groups[o.itemId]) {
+                groups[o.itemId] = {
+                    itemId: o.itemId,
+                    itemName: o.itemName,
+                    desc: o.desc,
+                    count: 0
+                };
+            }
+            groups[o.itemId].count++;
+        });
+
         let text = `🍕 DILANS ROULETTE BESTILLING (RHK)\n`;
-        text += `--------------------------------------\n`;
+        text += `======================================\n`;
+        text += `📋 BESTILLING TIL DILAN (SAMLET):\n`;
+        Object.values(groups).forEach((g) => {
+            const descNote = g.desc ? ` (${g.desc})` : '';
+            text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
+        });
+        text += `\n👥 HVEM SKAL HAVE HVAD:\n`;
         orders.forEach((o, i) => {
             const beerNote = o.beerbongs > 0 ? ` [${o.beerbongs}x 🍺 ølbong]` : '';
-            const descNote = o.desc ? ` (${o.desc})` : '';
-            text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${descNote}${beerNote}\n`;
+            text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${beerNote}\n`;
         });
-        text += `--------------------------------------\n`;
+        text += `======================================\n`;
         const totalBeers = orders.reduce((sum, o) => sum + (o.beerbongs || 0), 0);
         text += `I alt: ${orders.length} retter | ${totalBeers} ølbongs bundet 🍻\n`;
 
         try {
             await navigator.clipboard.writeText(text);
-            const originalText = copyOrdersBtn.textContent;
-            copyOrdersBtn.textContent = '✓ Kopieret!';
+            const originalHtml = copyOrdersBtn.innerHTML;
+            copyOrdersBtn.innerHTML = '✓ Kopieret!';
             setTimeout(() => {
-                copyOrdersBtn.textContent = originalText;
+                copyOrdersBtn.innerHTML = originalHtml;
             }, 2000);
         } catch (err) {
             prompt('Kopier bestilling herfra:', text);
