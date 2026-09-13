@@ -601,6 +601,126 @@ body {
     font-size: 0.95rem;
 }
 
+.order-tabs-bar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.order-tabs {
+    display: flex;
+    background: rgba(11, 15, 25, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.order-tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.order-tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.order-tab-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Individual Row Item (Chronological View) */
+.order-row-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(11, 15, 25, 0.5);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: transform var(--transition-speed), border-color var(--transition-speed);
+}
+
+.order-row-item:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateX(2px);
+}
+
+.order-row-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.order-row-num {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 20px;
+}
+
+.order-row-person {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.order-row-dish {
+    color: var(--neon-green);
+    font-weight: 600;
+}
+
+.order-row-category {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.order-row-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.order-beer-tag {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: var(--neon-amber);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.order-beer-tag.zero {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+}
+
+.delete-order-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 4px;
+    transition: color var(--transition-speed);
+}
+.delete-order-btn:hover {
+    color: var(--neon-red);
+}
+
 /* Aggregated Order Group */
 .order-group {
     background: rgba(11, 15, 25, 0.55);

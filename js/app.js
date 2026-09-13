@@ -30,6 +30,10 @@
     const statBeersEl = document.getElementById('stat-beers');
     const copyOrdersBtn = document.getElementById('copy-orders-btn');
     const clearOrdersBtn = document.getElementById('clear-orders-btn');
+    const tabPlayersBtn = document.getElementById('tab-players');
+    const tabSummaryBtn = document.getElementById('tab-summary');
+
+    let currentOrderTab = localStorage.getItem('dilans_order_tab') || 'players';
 
     // App State
     let orders = [];
@@ -91,6 +95,27 @@
             pesceBadge.classList.toggle('checked', pesceToggle.checked);
             renderInitialReel();
         });
+
+        // Order View Tabs
+        updateTabButtons();
+        tabPlayersBtn.addEventListener('click', () => {
+            currentOrderTab = 'players';
+            localStorage.setItem('dilans_order_tab', 'players');
+            updateTabButtons();
+            renderOrders();
+        });
+
+        tabSummaryBtn.addEventListener('click', () => {
+            currentOrderTab = 'summary';
+            localStorage.setItem('dilans_order_tab', 'summary');
+            updateTabButtons();
+            renderOrders();
+        });
+    }
+
+    function updateTabButtons() {
+        tabPlayersBtn.classList.toggle('active', currentOrderTab === 'players');
+        tabSummaryBtn.classList.toggle('active', currentOrderTab === 'summary');
     }
 
     function updateMuteUI(muted) {
@@ -319,7 +344,41 @@
             return;
         }
 
-        // Aggregate by itemId
+        // 1. Standard View: Chronological order of each player's roll
+        if (currentOrderTab === 'players') {
+            orders.forEach((order, index) => {
+                const li = document.createElement('li');
+                li.className = 'order-row-item';
+
+                const beerBadge = order.beerbongs > 0
+                    ? `<span class="order-beer-tag">🍺 x${order.beerbongs} ølbong</span>`
+                    : `<span class="order-beer-tag zero">🍺 0 ølbong</span>`;
+
+                li.innerHTML = `
+                    <div class="order-row-left">
+                        <span class="order-row-num">${index + 1}.</span>
+                        <span class="order-row-person">${escapeHtml(order.player)}:</span>
+                        <span class="order-row-dish">#${escapeHtml(order.itemId)} ${escapeHtml(order.itemName)}</span>
+                        ${order.category ? `<span class="order-row-category">(${escapeHtml(order.category)})</span>` : ''}
+                    </div>
+                    <div class="order-row-right">
+                        ${beerBadge}
+                        <button class="delete-order-btn" title="Fjern ${escapeHtml(order.player)}s bestilling" data-order-id="${order.id}">✕</button>
+                    </div>
+                `;
+
+                li.querySelector('.delete-order-btn').addEventListener('click', () => {
+                    orders = orders.filter(o => o.id !== order.id);
+                    saveOrders();
+                    renderOrders();
+                });
+
+                orderListEl.appendChild(li);
+            });
+            return;
+        }
+
+        // 2. Summary View: Aggregated by dish for calling Dilan
         const groups = {};
         orders.forEach((order) => {
             if (!groups[order.itemId]) {
@@ -344,7 +403,9 @@
 
             // Individual buyer chips
             const buyersHtml = group.entries.map((entry) => {
-                const beerTag = entry.beerbongs > 0 ? `<span class="buyer-beer">🍺 x${entry.beerbongs}</span>` : '';
+                const beerTag = entry.beerbongs > 0 
+                    ? `<span class="buyer-beer">🍺 x${entry.beerbongs}</span>` 
+                    : `<span class="buyer-beer" style="color: var(--text-muted); font-weight: normal;">0 ølbong</span>`;
                 return `
                     <span class="buyer-chip">
                         <span class="buyer-name">${escapeHtml(entry.player)}</span>
@@ -368,7 +429,6 @@
                 </div>
             `;
 
-            // Attach individual delete event listeners
             li.querySelectorAll('.remove-buyer-btn').forEach((btn) => {
                 btn.addEventListener('click', (e) => {
                     const orderId = Number(e.currentTarget.getAttribute('data-order-id'));
