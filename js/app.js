@@ -1,6 +1,6 @@
 (function() {
     const { menuItems, vegetarIds, pescetarIds, udenOksekodIds, getCategoryForID } = window.DilanMenu;
-    const { playTick, playWin, playBeerBong, toggleMute, getMuteState } = window.DilanAudio;
+    const { warmAudio, playTick, playWin, playBeerBong, toggleMute, getMuteState } = window.DilanAudio;
     const { triggerConfetti } = window.DilanConfetti;
 
     // DOM Elements
@@ -373,25 +373,34 @@
 
     // Mechanical ticking simulator with smooth organic deceleration
     function playDeceleratingClicks(totalDuration) {
+        warmAudio();
         const startTime = performance.now();
 
+        // Fire the first tick immediately at 0ms so there is zero initial delay!
+        playTick(1);
+
         function scheduleNext() {
-            if (performance.now() - startTime >= totalDuration - 250) return;
+            const elapsed = performance.now() - startTime;
+            if (elapsed >= totalDuration - 250) return;
+
             playTick(1 + Math.random() * 0.15);
 
-            const progress = (performance.now() - startTime) / totalDuration;
-            // Starts as a gentle rolling rhythm (~60ms) and spaces out to ~750ms+ on the final crawl
-            const delay = 60 + Math.pow(progress, 3.2) * 750;
+            const progress = elapsed / totalDuration;
+            // Starts as a rapid mechanical flutter (~30ms) matching the explosive reel launch,
+            // then decelerates smoothly into the tension-filled ~750ms+ crawl
+            const delay = 30 + Math.pow(progress, 3.2) * 780;
 
             setTimeout(scheduleNext, delay);
         }
-        scheduleNext();
+
+        setTimeout(scheduleNext, 30);
     }
 
     // -------------------------------------------------------------
     // Button Handlers (Spin, Beerbong, Accept)
     // -------------------------------------------------------------
     spinBtn.addEventListener('click', () => {
+        warmAudio();
         spinRoulette();
     });
 
@@ -417,6 +426,7 @@
     // 🎰 Ølbong bundet - start spin igen (Trin 2)
     btnBeerbongDone.addEventListener('click', () => {
         if (isSpinning) return;
+        warmAudio();
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
         spinRoulette();
