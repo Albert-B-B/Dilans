@@ -555,6 +555,134 @@ body {
     background: rgba(255, 255, 255, 0.05);
 }
 
+.btn-beerbong-park {
+    width: 100%;
+    padding: 13px 20px;
+    background: rgba(30, 41, 59, 0.85);
+    color: var(--neon-amber);
+    border: 1px solid var(--neon-amber);
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-beerbong-park:hover {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fef08a;
+    border-color: #fbbf24;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px var(--neon-amber-glow);
+}
+
+/* Pending Ølbong Queue Bar */
+.pending-queue-container {
+    width: 100%;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    text-align: left;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    animation: fadeInQueue 0.3s ease-out;
+}
+
+@keyframes fadeInQueue {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pending-queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.pending-queue-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--neon-amber);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pending-queue-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pending-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(11, 15, 25, 0.8);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all var(--transition-speed);
+}
+
+.pending-chip:hover {
+    border-color: var(--neon-amber);
+    box-shadow: 0 0 12px var(--neon-amber-glow);
+    transform: translateY(-1px);
+}
+
+.pending-chip-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pending-chip-btn:hover {
+    color: var(--neon-amber);
+}
+
+.pending-chip-count {
+    color: var(--neon-amber);
+    font-weight: 800;
+}
+
+.pending-chip-arrow {
+    color: var(--neon-green);
+    font-size: 0.85rem;
+}
+
+.pending-chip-remove {
+    background: none;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: color var(--transition-speed);
+}
+
+.pending-chip-remove:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
 .outcome-panel.drinking-mode {
     border-color: var(--neon-amber);
     background: rgba(245, 158, 11, 0.1);

@@ -1,5 +1,5 @@
 (function() {
-    const { menuItems, vegetarIds, pescetarIds, getCategoryForID } = window.DilanMenu;
+    const { menuItems, vegetarIds, pescetarIds, udenOksekodIds, getCategoryForID } = window.DilanMenu;
     const { playTick, playWin, playBeerBong, toggleMute, getMuteState } = window.DilanAudio;
     const { triggerConfetti } = window.DilanConfetti;
 
@@ -9,8 +9,13 @@
     const playerNameInput = document.getElementById('player-name');
     const vegToggle = document.getElementById('veg-toggle');
     const pesceToggle = document.getElementById('pesce-toggle');
+    const nobeefToggle = document.getElementById('nobeef-toggle');
     const vegBadge = document.getElementById('veg-badge');
     const pesceBadge = document.getElementById('pesce-badge');
+    const nobeefBadge = document.getElementById('nobeef-badge');
+
+    const pendingQueueContainer = document.getElementById('pending-queue-container');
+    const pendingQueueChips = document.getElementById('pending-queue-chips');
 
     const reelViewport = document.getElementById('reel-viewport');
     const reelStrip = document.getElementById('reel-strip');
@@ -20,6 +25,7 @@
     const btnBeerbong = document.getElementById('btn-beerbong');
     const beerbongActions = document.getElementById('beerbong-actions');
     const btnBeerbongDone = document.getElementById('btn-beerbong-done');
+    const btnBeerbongPark = document.getElementById('btn-beerbong-park');
     const btnBeerbongCancel = document.getElementById('btn-beerbong-cancel');
 
     const outcomePanel = document.getElementById('outcome-panel');
@@ -47,6 +53,14 @@
         orders = [];
     }
 
+    let pendingPlayers = [];
+    try {
+        const savedPending = localStorage.getItem('dilans_pending_players');
+        if (savedPending) pendingPlayers = JSON.parse(savedPending);
+    } catch (e) {
+        pendingPlayers = [];
+    }
+
     let isSpinning = false;
     let currentBeerBongCount = 0;
     let currentWinner = null;
@@ -54,6 +68,7 @@
     // Initialize
     initSettings();
     renderInitialReel();
+    renderPendingQueue();
     renderOrders();
 
     // -------------------------------------------------------------
@@ -85,6 +100,8 @@
             if (vegToggle.checked) {
                 pesceToggle.checked = false;
                 pesceBadge.classList.remove('checked');
+                nobeefToggle.checked = false;
+                nobeefBadge.classList.remove('checked');
             }
             vegBadge.classList.toggle('checked', vegToggle.checked);
             renderInitialReel();
@@ -94,8 +111,21 @@
             if (pesceToggle.checked) {
                 vegToggle.checked = false;
                 vegBadge.classList.remove('checked');
+                nobeefToggle.checked = false;
+                nobeefBadge.classList.remove('checked');
             }
             pesceBadge.classList.toggle('checked', pesceToggle.checked);
+            renderInitialReel();
+        });
+
+        nobeefToggle.addEventListener('change', () => {
+            if (nobeefToggle.checked) {
+                vegToggle.checked = false;
+                vegBadge.classList.remove('checked');
+                pesceToggle.checked = false;
+                pesceBadge.classList.remove('checked');
+            }
+            nobeefBadge.classList.toggle('checked', nobeefToggle.checked);
             renderInitialReel();
         });
 
@@ -135,6 +165,9 @@
         }
         if (pesceToggle.checked) {
             return menuItems.filter(item => pescetarIds.includes(item.id));
+        }
+        if (nobeefToggle.checked) {
+            return menuItems.filter(item => udenOksekodIds.includes(item.id));
         }
         return menuItems;
     }
@@ -176,6 +209,19 @@
     // Spin execution
     function spinRoulette() {
         if (isSpinning) return;
+
+        // If player name matches someone in the pending queue, resume their accumulated beerbongs!
+        const enteredName = playerNameInput.value.trim();
+        if (enteredName) {
+            const pendingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === enteredName.toLowerCase());
+            if (pendingIndex >= 0) {
+                currentBeerBongCount = pendingPlayers[pendingIndex].beerbongs;
+                pendingPlayers.splice(pendingIndex, 1);
+                savePendingPlayers();
+                renderPendingQueue();
+            }
+        }
+
         const pool = getFilteredMenu();
         if (!pool.length) return;
 
@@ -292,7 +338,7 @@
 
         outcomeCategory.textContent = '🍺 ØLBONG';
         outcomeTitle.textContent = `🍺 Ølbong valgt (${playerName})`;
-        outcomeDesc.textContent = `Tryk på knappen nedenfor når du er klar til dit re-spin.`;
+        outcomeDesc.textContent = `Tryk på 'Spin igen' når du er klar, eller sæt dig i køen så den næste kan spinne imens.`;
         beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
     });
 
@@ -302,6 +348,11 @@
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
         spinRoulette();
+    });
+
+    // 👥 Parkér spiller i ølbong-køen og lad næste person spinne
+    btnBeerbongPark.addEventListener('click', () => {
+        parkCurrentPlayer();
     });
 
     // Fortryd ølbong og behold retten
@@ -335,6 +386,11 @@
         saveOrders();
         renderOrders();
 
+        // Also remove player from pending queue if they were in it
+        pendingPlayers = pendingPlayers.filter(p => p.name.toLowerCase() !== playerName.toLowerCase());
+        savePendingPlayers();
+        renderPendingQueue();
+
         // Reset turn for next person
         currentBeerBongCount = 0;
         currentWinner = null;
@@ -350,6 +406,128 @@
         outcomeTitle.textContent = `🍕 ${playerName} har låst sin ret!`;
         outcomeDesc.textContent = 'Indtast næste navn og tryk Spin Hjulet for at fortsætte festen.';
     });
+
+    // -------------------------------------------------------------
+    // Pending Beerbong Queue Logic
+    // -------------------------------------------------------------
+    function savePendingPlayers() {
+        localStorage.setItem('dilans_pending_players', JSON.stringify(pendingPlayers));
+    }
+
+    function renderPendingQueue() {
+        pendingQueueChips.innerHTML = '';
+        if (pendingPlayers.length === 0) {
+            pendingQueueContainer.style.display = 'none';
+            return;
+        }
+
+        pendingQueueContainer.style.display = 'block';
+        pendingPlayers.forEach(p => {
+            const chip = document.createElement('div');
+            chip.className = 'pending-chip';
+            chip.innerHTML = `
+                <button class="pending-chip-btn" title="Genoptag spintur for ${escapeHtml(p.name)}">
+                    <span>🍺 ${escapeHtml(p.name)}</span>
+                    <span class="pending-chip-count">(${p.beerbongs} ølbong)</span>
+                    <span class="pending-chip-arrow">➜ Spin igen</span>
+                </button>
+                <button class="pending-chip-remove" title="Fjern ${escapeHtml(p.name)} fra køen">✕</button>
+            `;
+
+            chip.querySelector('.pending-chip-btn').addEventListener('click', () => {
+                if (isSpinning) return;
+                resumePlayer(p.id);
+            });
+
+            chip.querySelector('.pending-chip-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isSpinning) return;
+                removePendingPlayer(p.id);
+            });
+
+            pendingQueueChips.appendChild(chip);
+        });
+    }
+
+    function parkCurrentPlayer() {
+        if (isSpinning) return;
+        const rawName = playerNameInput.value.trim();
+        const playerName = rawName || `Gæst ${pendingPlayers.length + 1}`;
+
+        const existingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === playerName.toLowerCase());
+        if (existingIndex >= 0) {
+            pendingPlayers[existingIndex].beerbongs = currentBeerBongCount;
+            if (currentWinner) pendingPlayers[existingIndex].lastItem = currentWinner;
+        } else {
+            pendingPlayers.push({
+                id: Date.now(),
+                name: playerName,
+                beerbongs: currentBeerBongCount,
+                lastItem: currentWinner
+            });
+        }
+
+        savePendingPlayers();
+        renderPendingQueue();
+
+        // Reset board for next player
+        currentBeerBongCount = 0;
+        currentWinner = null;
+        playerNameInput.value = '';
+        choiceActions.classList.remove('visible');
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        outcomePanel.classList.remove('winner');
+        spinBtn.disabled = false;
+
+        outcomeCategory.textContent = 'KLAR TIL NÆSTE';
+        outcomeTitle.textContent = `🍺 ${playerName} sat i ølbong-køen!`;
+        outcomeDesc.textContent = `Ølbong er registreret ovenfor. Hvem er den næste, der skal spinne?`;
+        beerbongTally.textContent = '';
+    }
+
+    function resumePlayer(playerId) {
+        if (isSpinning) return;
+        const p = pendingPlayers.find(item => item.id === playerId);
+        if (!p) return;
+
+        // If current turn has unsaved progress or beerbongs, park it first
+        if (currentBeerBongCount > 0) {
+            parkCurrentPlayer();
+        }
+
+        // Set as active player
+        playerNameInput.value = p.name;
+        currentBeerBongCount = p.beerbongs;
+        currentWinner = p.lastItem;
+
+        // Remove from pending queue
+        pendingPlayers = pendingPlayers.filter(item => item.id !== playerId);
+        savePendingPlayers();
+        renderPendingQueue();
+
+        // Show ready state for re-spin
+        choiceActions.classList.remove('visible');
+        beerbongActions.classList.add('visible');
+        outcomePanel.classList.add('drinking-mode');
+        outcomePanel.classList.remove('winner');
+        spinBtn.disabled = true;
+
+        outcomeCategory.textContent = '🍺 ØLBONG BUNDET';
+        outcomeTitle.textContent = `🍺 Velkommen tilbage, ${p.name}!`;
+        outcomeDesc.textContent = `${p.name} har taget ${p.beerbongs} ølbong. Klar til re-spin!`;
+        beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
+    }
+
+    function removePendingPlayer(playerId) {
+        const p = pendingPlayers.find(item => item.id === playerId);
+        if (!p) return;
+        if (confirm(`Vil du fjerne ${p.name} (${p.beerbongs} ølbong) fra køen?`)) {
+            pendingPlayers = pendingPlayers.filter(item => item.id !== playerId);
+            savePendingPlayers();
+            renderPendingQueue();
+        }
+    }
 
     // -------------------------------------------------------------
     // Kitchen Order List Management
@@ -523,11 +701,14 @@
 
     // Clear All Orders
     clearOrdersBtn.addEventListener('click', () => {
-        if (orders.length === 0) return;
-        if (confirm('Er du sikker på, at du vil rydde hele køkkenets bestillingsliste?')) {
+        if (orders.length === 0 && pendingPlayers.length === 0) return;
+        if (confirm('Er du sikker på, at du vil rydde hele køkkenets bestillingsliste og ølbong-køen?')) {
             orders = [];
+            pendingPlayers = [];
             saveOrders();
+            savePendingPlayers();
             renderOrders();
+            renderPendingQueue();
         }
     });
 
