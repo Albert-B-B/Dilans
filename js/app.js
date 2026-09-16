@@ -193,13 +193,37 @@
         return firstItem ? firstItem.getBoundingClientRect().height : (document.body.classList.contains('tv-mode') ? 190 : 140);
     }
 
+    // -------------------------------------------------------------
+    // Cryptographically Secure Hardware Randomness (Zero-Bias)
+    // -------------------------------------------------------------
+    function getSecureRandomIndex(max) {
+        if (max <= 1) return 0;
+        if (window.crypto && window.crypto.getRandomValues) {
+            const array = new Uint32Array(1);
+            const maxUint = 0xFFFFFFFF;
+            const limit = maxUint - (maxUint % max);
+            let rand;
+            do {
+                window.crypto.getRandomValues(array);
+                rand = array[0];
+            } while (rand >= limit);
+            return rand % max;
+        }
+        return Math.floor(Math.random() * max);
+    }
+
+    function getRandomPoolItem(pool) {
+        if (!pool || pool.length === 0) return null;
+        return pool[getSecureRandomIndex(pool.length)];
+    }
+
     function renderInitialReel() {
         reelStrip.innerHTML = '';
         const pool = getFilteredMenu();
         const sample = [
-            pool[Math.floor(Math.random() * pool.length)],
-            pool[Math.floor(Math.random() * pool.length)],
-            pool[Math.floor(Math.random() * pool.length)]
+            getRandomPoolItem(pool),
+            getRandomPoolItem(pool),
+            getRandomPoolItem(pool)
         ];
         sample.forEach(item => reelStrip.appendChild(createItemElement(item)));
         reelStrip.style.transition = 'none';
@@ -236,8 +260,8 @@
         outcomeDesc.textContent = 'Gør ølbongen klar hvis du rammer ved siden af!';
         outcomeCategory.textContent = 'ROULETTE';
 
-        // Pick target winner
-        const winningItem = pool[Math.floor(Math.random() * pool.length)];
+        // Pick target winner using cryptographically secure hardware entropy
+        const winningItem = getRandomPoolItem(pool);
         currentWinner = winningItem;
 
         // Build strip of 56 items leading up to the winner for an epic high-anticipation spin
@@ -245,13 +269,13 @@
         const itemsSequence = [];
 
         for (let i = 0; i < totalReelItems - 1; i++) {
-            itemsSequence.push(pool[Math.floor(Math.random() * pool.length)]);
+            itemsSequence.push(getRandomPoolItem(pool));
         }
         // Place winning item at index (totalReelItems - 2) so it centers in the crosshair
         const targetCenterIndex = totalReelItems - 2;
         itemsSequence[targetCenterIndex] = winningItem;
         // Add 1 extra trailing item for smooth viewport overflow
-        itemsSequence.push(pool[Math.floor(Math.random() * pool.length)]);
+        itemsSequence.push(getRandomPoolItem(pool));
 
         reelStrip.innerHTML = '';
         itemsSequence.forEach(item => reelStrip.appendChild(createItemElement(item)));
