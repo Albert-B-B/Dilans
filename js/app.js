@@ -86,6 +86,34 @@
             const active = document.body.classList.toggle('tv-mode');
             tvToggle.classList.toggle('active', active);
             localStorage.setItem('dilans_tv_mode', active);
+
+            // Re-align the reel so it's perfectly centered in the crosshair with the new height (140px vs 190px)
+            if (currentWinner) {
+                renderReelCenteredOn(currentWinner);
+            } else {
+                renderInitialReel();
+            }
+        });
+
+        // Re-align reel on window resize or fullscreen change
+        window.addEventListener('resize', () => {
+            if (!isSpinning) {
+                if (currentWinner) {
+                    renderReelCenteredOn(currentWinner);
+                } else {
+                    renderInitialReel();
+                }
+            }
+        });
+
+        // Pressing Enter in player name input immediately spins
+        playerNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!isSpinning && !spinBtn.disabled) {
+                    spinBtn.click();
+                }
+            }
         });
 
         // Mute toggle
@@ -294,6 +322,10 @@
 
         isSpinning = true;
         spinBtn.disabled = true;
+        playerNameInput.disabled = true;
+        vegToggle.disabled = true;
+        pesceToggle.disabled = true;
+        nobeefToggle.disabled = true;
         choiceActions.classList.remove('visible');
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('winner');
@@ -371,6 +403,10 @@
         // After spin ends
         setTimeout(() => {
             isSpinning = false;
+            playerNameInput.disabled = false;
+            vegToggle.disabled = false;
+            pesceToggle.disabled = false;
+            nobeefToggle.disabled = false;
             outcomePanel.classList.add('winner');
 
             const category = getCategoryForID(winningItem.id);
@@ -786,9 +822,16 @@
 
     // Copy Order to Clipboard (Aggregated for pizzeria + Detailed per person)
     copyOrdersBtn.addEventListener('click', async () => {
-        if (orders.length === 0) {
+        if (orders.length === 0 && pendingPlayers.length === 0) {
             alert('Der er ingen retter på bestillingslisten endnu.');
             return;
+        }
+
+        // Warn if anyone is still drinking in the ølbong queue
+        if (pendingPlayers.length > 0) {
+            const pendingNames = pendingPlayers.map(p => p.name).join(', ');
+            const proceed = confirm(`⚠️ BEMÆRK: ${pendingNames} er stadig i ølbong-køen og mangler at låse deres ret!\n\nVil du kopiere bestillingen alligevel? (De inkluderes som ventende i bunden af teksten)`);
+            if (!proceed) return;
         }
 
         // 1. Group items for pizzeria
@@ -808,15 +851,30 @@
         let text = `🍕 DILANS ROULETTE BESTILLING (RHK)\n`;
         text += `======================================\n`;
         text += `📋 BESTILLING TIL DILAN (SAMLET):\n`;
-        Object.values(groups).forEach((g) => {
-            const descNote = g.desc ? ` (${g.desc})` : '';
-            text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
-        });
+        if (Object.keys(groups).length > 0) {
+            Object.values(groups).forEach((g) => {
+                const descNote = g.desc ? ` (${g.desc})` : '';
+                text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
+            });
+        } else {
+            text += `(Ingen låste retter endnu)\n`;
+        }
+
         text += `\n👥 HVEM SKAL HAVE HVAD:\n`;
         orders.forEach((o, i) => {
             const beerNote = o.beerbongs > 0 ? ` [${o.beerbongs}x 🍺 ølbong]` : '';
             text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${beerNote}\n`;
         });
+
+        // Mention any players still in the queue so they aren't forgotten
+        if (pendingPlayers.length > 0) {
+            text += `\n⚠️ IKKE FÆRDIGE ENDNU (I ØLBONG-KØEN):\n`;
+            pendingPlayers.forEach(p => {
+                const lastDish = p.lastItem ? ` (sidst rullet #${p.lastItem.id} ${p.lastItem.name})` : ' (ikke rullet endnu)';
+                text += `• ${p.name}: ${p.beerbongs}x 🍺 ølbong${lastDish}\n`;
+            });
+        }
+
         text += `======================================\n`;
         const totalBeers = orders.reduce((sum, o) => sum + (o.beerbongs || 0), 0);
         text += `I alt: ${orders.length} retter | ${totalBeers} ølbongs bundet 🍻\n`;
