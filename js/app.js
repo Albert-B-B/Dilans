@@ -172,6 +172,24 @@
         return menuItems;
     }
 
+    function getCurrentDiet() {
+        if (vegToggle.checked) return 'veg';
+        if (pesceToggle.checked) return 'pesce';
+        if (nobeefToggle.checked) return 'nobeef';
+        return 'none';
+    }
+
+    function setDiet(diet) {
+        vegToggle.checked = (diet === 'veg');
+        vegBadge.classList.toggle('checked', vegToggle.checked);
+
+        pesceToggle.checked = (diet === 'pesce');
+        pesceBadge.classList.toggle('checked', pesceToggle.checked);
+
+        nobeefToggle.checked = (diet === 'nobeef');
+        nobeefBadge.classList.toggle('checked', nobeefToggle.checked);
+    }
+
     // -------------------------------------------------------------
     // Slot Reel Generation & Mechanics
     // -------------------------------------------------------------
@@ -256,12 +274,15 @@
     function spinRoulette() {
         if (isSpinning) return;
 
-        // If player name matches someone in the pending queue, resume their accumulated beerbongs!
+        // If player name matches someone in the pending queue, resume their accumulated beerbongs and diet!
         const enteredName = playerNameInput.value.trim();
         if (enteredName) {
             const pendingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === enteredName.toLowerCase());
             if (pendingIndex >= 0) {
                 currentBeerBongCount = pendingPlayers[pendingIndex].beerbongs;
+                if (pendingPlayers[pendingIndex].diet) {
+                    setDiet(pendingPlayers[pendingIndex].diet);
+                }
                 pendingPlayers.splice(pendingIndex, 1);
                 savePendingPlayers();
                 renderPendingQueue();
@@ -473,10 +494,11 @@
         savePendingPlayers();
         renderPendingQueue();
 
-        // Reset turn for next person
+        // Reset turn and dietary preferences to none for next person
         currentBeerBongCount = 0;
         currentWinner = null;
         playerNameInput.value = '';
+        setDiet('none');
         beerbongTally.textContent = '';
         choiceActions.classList.remove('visible');
         beerbongActions.classList.remove('visible');
@@ -484,6 +506,7 @@
         spinBtn.disabled = false;
         btnBeerbongDone.textContent = '🍻 Ølbong bundet! Spin igen 🎰';
         btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        renderInitialReel();
 
         outcomePanel.classList.remove('winner');
         outcomeCategory.textContent = 'BESTILLING GEMT!';
@@ -509,10 +532,11 @@
         pendingPlayers.forEach(p => {
             const chip = document.createElement('div');
             chip.className = 'pending-chip';
+            const dietBadge = p.diet === 'veg' ? ' • 🌱' : (p.diet === 'pesce' ? ' • 🐟' : (p.diet === 'nobeef' ? ' • 🥩' : ''));
             chip.innerHTML = `
                 <button class="pending-chip-btn" title="Genoptag spintur for ${escapeHtml(p.name)}">
                     <span>🍺 ${escapeHtml(p.name)}</span>
-                    <span class="pending-chip-count">(${p.beerbongs} ølbong)</span>
+                    <span class="pending-chip-count">(${p.beerbongs} ølbong${dietBadge})</span>
                     <span class="pending-chip-arrow">➜ Spin igen</span>
                 </button>
                 <button class="pending-chip-remove" title="Fjern ${escapeHtml(p.name)} fra køen">✕</button>
@@ -538,26 +562,30 @@
         const rawName = playerNameInput.value.trim();
         const playerName = rawName || `Gæst ${pendingPlayers.length + 1}`;
 
+        const playerDiet = getCurrentDiet();
         const existingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === playerName.toLowerCase());
         if (existingIndex >= 0) {
             pendingPlayers[existingIndex].beerbongs = currentBeerBongCount;
             if (currentWinner) pendingPlayers[existingIndex].lastItem = currentWinner;
+            pendingPlayers[existingIndex].diet = playerDiet;
         } else {
             pendingPlayers.push({
                 id: Date.now(),
                 name: playerName,
                 beerbongs: currentBeerBongCount,
-                lastItem: currentWinner
+                lastItem: currentWinner,
+                diet: playerDiet
             });
         }
 
         savePendingPlayers();
         renderPendingQueue();
 
-        // Reset board for next player
+        // Reset board and dietary preferences to none for next player
         currentBeerBongCount = 0;
         currentWinner = null;
         playerNameInput.value = '';
+        setDiet('none');
         choiceActions.classList.remove('visible');
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
@@ -587,6 +615,9 @@
         playerNameInput.value = p.name;
         currentBeerBongCount = p.beerbongs;
         currentWinner = p.lastItem;
+
+        // Restore player's saved dietary preference!
+        setDiet(p.diet || 'none');
 
         // Restore wheel to show the dish this person rolled before taking the beerbong!
         if (p.lastItem) {
