@@ -217,17 +217,39 @@
         return pool[getSecureRandomIndex(pool.length)];
     }
 
-    function renderInitialReel() {
+    function renderReelCenteredOn(targetItem) {
+        if (!targetItem) return;
         reelStrip.innerHTML = '';
         const pool = getFilteredMenu();
-        const sample = [
-            getRandomPoolItem(pool),
-            getRandomPoolItem(pool),
-            getRandomPoolItem(pool)
-        ];
-        sample.forEach(item => reelStrip.appendChild(createItemElement(item)));
+
+        // Pick top neighbor (different from targetItem)
+        let topNeighbor;
+        do {
+            topNeighbor = getRandomPoolItem(pool);
+        } while (topNeighbor && topNeighbor.id === targetItem.id && pool.length > 1);
+
+        // Pick bottom neighbor (different from targetItem)
+        let bottomNeighbor;
+        do {
+            bottomNeighbor = getRandomPoolItem(pool);
+        } while (bottomNeighbor && bottomNeighbor.id === targetItem.id && pool.length > 1);
+
+        const trio = [topNeighbor, targetItem, bottomNeighbor];
+        trio.forEach(item => reelStrip.appendChild(createItemElement(item)));
+
         reelStrip.style.transition = 'none';
-        reelStrip.style.transform = 'translateY(0px)';
+
+        // Center targetItem in crosshair
+        const itemHeight = getItemHeight();
+        const viewportHeight = reelViewport.getBoundingClientRect().height || (itemHeight * 2.5);
+        const targetScrollY = (1 * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+        reelStrip.style.transform = `translateY(-${targetScrollY}px)`;
+    }
+
+    function renderInitialReel() {
+        const pool = getFilteredMenu();
+        if (!pool.length) return;
+        renderReelCenteredOn(getRandomPoolItem(pool));
     }
 
     // Spin execution
@@ -265,17 +287,43 @@
         currentWinner = winningItem;
 
         // Build strip of 56 items leading up to the winner for an epic high-anticipation spin
+        // Guarantee no two adjacent items on the reel tape are identical
         const totalReelItems = 56;
         const itemsSequence = [];
 
-        for (let i = 0; i < totalReelItems - 1; i++) {
-            itemsSequence.push(getRandomPoolItem(pool));
+        let prevItem = null;
+        for (let i = 0; i < totalReelItems - 2; i++) {
+            let item;
+            do {
+                item = getRandomPoolItem(pool);
+            } while (prevItem && item.id === prevItem.id && pool.length > 1);
+            itemsSequence.push(item);
+            prevItem = item;
         }
+
+        // Ensure the item immediately before the winner is not the winner itself
+        if (itemsSequence.length > 0 && itemsSequence[itemsSequence.length - 1].id === winningItem.id && pool.length > 1) {
+            let replacement;
+            const itemBeforeThat = itemsSequence.length > 1 ? itemsSequence[itemsSequence.length - 2] : null;
+            do {
+                replacement = getRandomPoolItem(pool);
+            } while (
+                (replacement.id === winningItem.id || (itemBeforeThat && replacement.id === itemBeforeThat.id)) &&
+                pool.length > 2
+            );
+            itemsSequence[itemsSequence.length - 1] = replacement;
+        }
+
         // Place winning item at index (totalReelItems - 2) so it centers in the crosshair
         const targetCenterIndex = totalReelItems - 2;
-        itemsSequence[targetCenterIndex] = winningItem;
-        // Add 1 extra trailing item for smooth viewport overflow
-        itemsSequence.push(getRandomPoolItem(pool));
+        itemsSequence.push(winningItem);
+
+        // Add 1 extra trailing item for smooth viewport overflow, ensuring it's not the winner
+        let trailingItem;
+        do {
+            trailingItem = getRandomPoolItem(pool);
+        } while (trailingItem.id === winningItem.id && pool.length > 1);
+        itemsSequence.push(trailingItem);
 
         reelStrip.innerHTML = '';
         itemsSequence.forEach(item => reelStrip.appendChild(createItemElement(item)));
@@ -424,6 +472,8 @@
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
         spinBtn.disabled = false;
+        btnBeerbongDone.textContent = '🍻 Ølbong bundet! Spin igen 🎰';
+        btnBeerbongCancel.textContent = 'Fortryd & behold retten';
 
         outcomePanel.classList.remove('winner');
         outcomeCategory.textContent = 'BESTILLING GEMT!';
@@ -503,6 +553,9 @@
         outcomePanel.classList.remove('drinking-mode');
         outcomePanel.classList.remove('winner');
         spinBtn.disabled = false;
+        btnBeerbongDone.textContent = '🍻 Ølbong bundet! Spin igen 🎰';
+        btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        renderInitialReel();
 
         outcomeCategory.textContent = 'KLAR TIL NÆSTE';
         outcomeTitle.textContent = `🍺 ${playerName} sat i ølbong-køen!`;
@@ -525,6 +578,11 @@
         currentBeerBongCount = p.beerbongs;
         currentWinner = p.lastItem;
 
+        // Restore wheel to show the dish this person rolled before taking the beerbong!
+        if (p.lastItem) {
+            renderReelCenteredOn(p.lastItem);
+        }
+
         // Remove from pending queue
         pendingPlayers = pendingPlayers.filter(item => item.id !== playerId);
         savePendingPlayers();
@@ -537,10 +595,21 @@
         outcomePanel.classList.remove('winner');
         spinBtn.disabled = true;
 
-        outcomeCategory.textContent = '🍺 ØLBONG BUNDET';
-        outcomeTitle.textContent = `🍺 Velkommen tilbage, ${p.name}!`;
-        outcomeDesc.textContent = `${p.name} har taget ${p.beerbongs} ølbong. Klar til re-spin!`;
-        beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
+        if (p.lastItem) {
+            const cat = getCategoryForID(p.lastItem.id);
+            outcomeCategory.textContent = `🍺 ${p.name.toUpperCase()} (ØLBONG BUNDET)`;
+            outcomeTitle.textContent = `#${p.lastItem.id} ${p.lastItem.name}`;
+            outcomeDesc.textContent = `Tidligere rullet af ${p.name}. Klar til re-spin eller acceptér retten.`;
+            btnBeerbongDone.textContent = `🍻 Ølbong bundet! Spin for ${p.name} 🎰`;
+            btnBeerbongCancel.textContent = `Fortryd & behold #${p.lastItem.id} ${p.lastItem.name}`;
+        } else {
+            outcomeCategory.textContent = '🍺 ØLBONG BUNDET';
+            outcomeTitle.textContent = `🍺 Velkommen tilbage, ${p.name}!`;
+            outcomeDesc.textContent = `${p.name} har taget ${p.beerbongs} ølbong. Klar til re-spin!`;
+            btnBeerbongDone.textContent = `🍻 Ølbong bundet! Spin for ${p.name} 🎰`;
+            btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        }
+        beerbongTally.textContent = `🍺 Ølbongs taget af ${p.name}: ${currentBeerBongCount}`;
     }
 
     function removePendingPlayer(playerId) {
