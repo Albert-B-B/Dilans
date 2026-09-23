@@ -3,6 +3,27 @@
     let audioCtx = null;
     let isMuted = localStorage.getItem('dilans_muted') === 'true';
 
+    function warmAudio() {
+        try {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        } catch (e) {
+            // Ignore pre-warm restrictions
+        }
+    }
+
+    // Auto-warm AudioContext on user interaction so audio engine is 100% ready instantly
+    ['click', 'touchstart', 'keydown', 'mousedown'].forEach(evt => {
+        window.addEventListener(evt, warmAudio, { once: false, passive: true });
+    });
+
     function getAudioContext() {
         if (!audioCtx) {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -39,24 +60,24 @@
 
             // Lowpass filter removes any piercing high frequencies
             filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(800, ctx.currentTime);
+            filter.frequency.setValueAtTime(850, ctx.currentTime);
 
-            // Sine wave starting with a quick gentle transient drop (210Hz -> 55Hz)
+            // Sine wave starting with a quick gentle transient drop (215Hz -> 55Hz)
             osc.type = 'sine';
-            const baseFreq = (200 + Math.random() * 25) * pitchMultiplier;
+            const baseFreq = (210 + Math.random() * 25) * pitchMultiplier;
             osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.025);
+            osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.028);
 
-            // Soft volume envelope: gentle tactile click
-            gain.gain.setValueAtTime(0.08, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
+            // Immediate tactile click envelope
+            gain.gain.setValueAtTime(0.12, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.028);
 
             osc.connect(filter);
             filter.connect(gain);
             gain.connect(ctx.destination);
 
             osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.03);
+            osc.stop(ctx.currentTime + 0.032);
         } catch (e) {
             console.warn('Audio tick error', e);
         }
@@ -125,6 +146,7 @@
     }
 
     window.DilanAudio = {
+        warmAudio,
         getMuteState,
         toggleMute,
         playTick,

@@ -21,22 +21,25 @@ Det lokale pizzeria, *Dilan's Pizzaria*, har et gigantisk menukort med et hav af
 
 ## ✨ Funktioner
 
-- **🎰 Mekanisk Slot Machine Reel**: Ruller med 3D gradient-masker og blød nedbremsning med pixel-perfekt centrering.
-- **🍺 Ølbong-tæller & Re-spin knap**: Holder styr på, hvor mange ølbongs hver person har bundet for at undgå deres ret.
+- **🎰 Mekanisk Slot Machine Reel**: Ruller med 3D gradient-masker, blød nedbremsning og cryptografisk hardware-entropi (`crypto.getRandomValues()`) med nul modulo-bias.
+- **🍺 Parallel Ølbong-kø**:
+  - Gå ud og drik din ølbong imens de næste gæster spinner i mellemtiden!
+  - Husker din tidligere rullede ret, antal ølbongs og kostpræference når du genoptager din tur.
 - **📋 Live Køkken Bestillingsliste**:
-  - Samlet oversigt over hvem der skal have hvad.
+  - To visninger: Kronologisk spillerrækkefølge og samlet ordre grupperet til Dilan.
   - Tæller af totalt antal retter og samlede antal ølbongs bundet til festen.
-  - **Kopier Bestilling**: Kopiér hele bestillingen pænt formateret til udklipsholderen (klar til SMS/opkald til Dilan).
+  - **Kopier Bestilling**: Kopiér hele bestillingen pænt formateret til udklipsholderen (inkl. advarsel hvis nogen stadig drikker i ølbong-køen).
   - Gemmes i `localStorage`, så listen ikke mistes hvis siden genindlæses.
 - **📺 TV / Storskærmstilstand**: Skalér tekst og roulette op med et klik, så den er letlæselig på en storskærm eller projektor i køkkenet.
 - **🔊 Web Audio Lydeffekter**:
-  - Mekaniske klik der decelererer i takt med hjulet.
+  - Mekaniske klik der decelererer i takt med hjulet (øjeblikkelig 0ms start uden browser-lag).
   - Sejrsfanfare og konfetti når retten afsløres.
   - Drikkelyd ved ølbong-klik.
   - Lyd til/fra-knap i toppen.
 - **🥗 Kostfiltre**:
-  - **Vegetar**: Vælger kun kødfrie retter.
-  - **Pescetar**: Tillader også fiskeretter.
+  - **🌱 Vegetar**: Vælger kun kødfrie retter.
+  - **🐟 Pescetar**: Tillader også fiskeretter.
+  - **🥩 Uden oksekød**: Udelukker alle retter med oksekød, hakket kød, kødsauce, bøf og kebab. Nulstilles automatisk til ren tavle for næste gæst.
 
 ---
 

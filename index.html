@@ -42,8 +42,21 @@
                 <label id="pesce-badge" class="diet-badge">
                     <input type="checkbox" id="pesce-toggle"> 🐟 Pescetar
                 </label>
+                <label id="nobeef-badge" class="diet-badge">
+                    <input type="checkbox" id="nobeef-toggle"> 🥩 Uden oksekød
+                </label>
             </div>
         </section>
+
+        <!-- Pending Ølbong Queue Bar (Visible when players are drinking / waiting for re-spin) -->
+        <div id="pending-queue-container" class="pending-queue-container" style="display: none;">
+            <div class="pending-queue-header">
+                <span class="pending-queue-title">🍻 Drikker ølbong (venter på re-spin):</span>
+            </div>
+            <div id="pending-queue-chips" class="pending-queue-chips">
+                <!-- Dynamic pending player chips rendered here -->
+            </div>
+        </div>
 
         <!-- Slot Reel Viewport -->
         <div class="reel-wrapper" aria-label="Roulette hjul">
@@ -78,6 +91,7 @@
 
             <div id="beerbong-actions" class="beerbong-actions">
                 <button id="btn-beerbong-done" class="btn-beerbong-done">🍻 Ølbong bundet! Spin igen 🎰</button>
+                <button id="btn-beerbong-park" class="btn-beerbong-park">👥 Drikker ølbong – spin for næste imens</button>
                 <button id="btn-beerbong-cancel" class="btn-beerbong-cancel">Fortryd & behold retten</button>
             </div>
         </div>

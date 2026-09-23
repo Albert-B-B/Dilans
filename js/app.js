@@ -1,6 +1,6 @@
 (function() {
-    const { menuItems, vegetarIds, pescetarIds, getCategoryForID } = window.DilanMenu;
-    const { playTick, playWin, playBeerBong, toggleMute, getMuteState } = window.DilanAudio;
+    const { menuItems, vegetarIds, pescetarIds, udenOksekodIds, getCategoryForID } = window.DilanMenu;
+    const { warmAudio, playTick, playWin, playBeerBong, toggleMute, getMuteState } = window.DilanAudio;
     const { triggerConfetti } = window.DilanConfetti;
 
     // DOM Elements
@@ -9,8 +9,13 @@
     const playerNameInput = document.getElementById('player-name');
     const vegToggle = document.getElementById('veg-toggle');
     const pesceToggle = document.getElementById('pesce-toggle');
+    const nobeefToggle = document.getElementById('nobeef-toggle');
     const vegBadge = document.getElementById('veg-badge');
     const pesceBadge = document.getElementById('pesce-badge');
+    const nobeefBadge = document.getElementById('nobeef-badge');
+
+    const pendingQueueContainer = document.getElementById('pending-queue-container');
+    const pendingQueueChips = document.getElementById('pending-queue-chips');
 
     const reelViewport = document.getElementById('reel-viewport');
     const reelStrip = document.getElementById('reel-strip');
@@ -20,6 +25,7 @@
     const btnBeerbong = document.getElementById('btn-beerbong');
     const beerbongActions = document.getElementById('beerbong-actions');
     const btnBeerbongDone = document.getElementById('btn-beerbong-done');
+    const btnBeerbongPark = document.getElementById('btn-beerbong-park');
     const btnBeerbongCancel = document.getElementById('btn-beerbong-cancel');
 
     const outcomePanel = document.getElementById('outcome-panel');
@@ -47,6 +53,14 @@
         orders = [];
     }
 
+    let pendingPlayers = [];
+    try {
+        const savedPending = localStorage.getItem('dilans_pending_players');
+        if (savedPending) pendingPlayers = JSON.parse(savedPending);
+    } catch (e) {
+        pendingPlayers = [];
+    }
+
     let isSpinning = false;
     let currentBeerBongCount = 0;
     let currentWinner = null;
@@ -54,6 +68,7 @@
     // Initialize
     initSettings();
     renderInitialReel();
+    renderPendingQueue();
     renderOrders();
 
     // -------------------------------------------------------------
@@ -71,6 +86,34 @@
             const active = document.body.classList.toggle('tv-mode');
             tvToggle.classList.toggle('active', active);
             localStorage.setItem('dilans_tv_mode', active);
+
+            // Re-align the reel so it's perfectly centered in the crosshair with the new height (140px vs 190px)
+            if (currentWinner) {
+                renderReelCenteredOn(currentWinner);
+            } else {
+                renderInitialReel();
+            }
+        });
+
+        // Re-align reel on window resize or fullscreen change
+        window.addEventListener('resize', () => {
+            if (!isSpinning) {
+                if (currentWinner) {
+                    renderReelCenteredOn(currentWinner);
+                } else {
+                    renderInitialReel();
+                }
+            }
+        });
+
+        // Pressing Enter in player name input immediately spins
+        playerNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!isSpinning && !spinBtn.disabled) {
+                    spinBtn.click();
+                }
+            }
         });
 
         // Mute toggle
@@ -85,6 +128,8 @@
             if (vegToggle.checked) {
                 pesceToggle.checked = false;
                 pesceBadge.classList.remove('checked');
+                nobeefToggle.checked = false;
+                nobeefBadge.classList.remove('checked');
             }
             vegBadge.classList.toggle('checked', vegToggle.checked);
             renderInitialReel();
@@ -94,8 +139,21 @@
             if (pesceToggle.checked) {
                 vegToggle.checked = false;
                 vegBadge.classList.remove('checked');
+                nobeefToggle.checked = false;
+                nobeefBadge.classList.remove('checked');
             }
             pesceBadge.classList.toggle('checked', pesceToggle.checked);
+            renderInitialReel();
+        });
+
+        nobeefToggle.addEventListener('change', () => {
+            if (nobeefToggle.checked) {
+                vegToggle.checked = false;
+                vegBadge.classList.remove('checked');
+                pesceToggle.checked = false;
+                pesceBadge.classList.remove('checked');
+            }
+            nobeefBadge.classList.toggle('checked', nobeefToggle.checked);
             renderInitialReel();
         });
 
@@ -136,7 +194,28 @@
         if (pesceToggle.checked) {
             return menuItems.filter(item => pescetarIds.includes(item.id));
         }
+        if (nobeefToggle.checked) {
+            return menuItems.filter(item => udenOksekodIds.includes(item.id));
+        }
         return menuItems;
+    }
+
+    function getCurrentDiet() {
+        if (vegToggle.checked) return 'veg';
+        if (pesceToggle.checked) return 'pesce';
+        if (nobeefToggle.checked) return 'nobeef';
+        return 'none';
+    }
+
+    function setDiet(diet) {
+        vegToggle.checked = (diet === 'veg');
+        vegBadge.classList.toggle('checked', vegToggle.checked);
+
+        pesceToggle.checked = (diet === 'pesce');
+        pesceBadge.classList.toggle('checked', pesceToggle.checked);
+
+        nobeefToggle.checked = (diet === 'nobeef');
+        nobeefBadge.classList.toggle('checked', nobeefToggle.checked);
     }
 
     // -------------------------------------------------------------
@@ -160,27 +239,93 @@
         return firstItem ? firstItem.getBoundingClientRect().height : (document.body.classList.contains('tv-mode') ? 190 : 140);
     }
 
-    function renderInitialReel() {
+    // -------------------------------------------------------------
+    // Cryptographically Secure Hardware Randomness (Zero-Bias)
+    // -------------------------------------------------------------
+    function getSecureRandomIndex(max) {
+        if (max <= 1) return 0;
+        if (window.crypto && window.crypto.getRandomValues) {
+            const array = new Uint32Array(1);
+            const maxUint = 0xFFFFFFFF;
+            const limit = maxUint - (maxUint % max);
+            let rand;
+            do {
+                window.crypto.getRandomValues(array);
+                rand = array[0];
+            } while (rand >= limit);
+            return rand % max;
+        }
+        return Math.floor(Math.random() * max);
+    }
+
+    function getRandomPoolItem(pool) {
+        if (!pool || pool.length === 0) return null;
+        return pool[getSecureRandomIndex(pool.length)];
+    }
+
+    function renderReelCenteredOn(targetItem) {
+        if (!targetItem) return;
         reelStrip.innerHTML = '';
         const pool = getFilteredMenu();
-        const sample = [
-            pool[Math.floor(Math.random() * pool.length)],
-            pool[Math.floor(Math.random() * pool.length)],
-            pool[Math.floor(Math.random() * pool.length)]
-        ];
-        sample.forEach(item => reelStrip.appendChild(createItemElement(item)));
+
+        // Pick top neighbor (different from targetItem)
+        let topNeighbor;
+        do {
+            topNeighbor = getRandomPoolItem(pool);
+        } while (topNeighbor && topNeighbor.id === targetItem.id && pool.length > 1);
+
+        // Pick bottom neighbor (different from targetItem)
+        let bottomNeighbor;
+        do {
+            bottomNeighbor = getRandomPoolItem(pool);
+        } while (bottomNeighbor && bottomNeighbor.id === targetItem.id && pool.length > 1);
+
+        const trio = [topNeighbor, targetItem, bottomNeighbor];
+        trio.forEach(item => reelStrip.appendChild(createItemElement(item)));
+
         reelStrip.style.transition = 'none';
-        reelStrip.style.transform = 'translateY(0px)';
+
+        // Center targetItem in crosshair
+        const itemHeight = getItemHeight();
+        const viewportHeight = reelViewport.getBoundingClientRect().height || (itemHeight * 2.5);
+        const targetScrollY = (1 * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+        reelStrip.style.transform = `translateY(-${targetScrollY}px)`;
+    }
+
+    function renderInitialReel() {
+        const pool = getFilteredMenu();
+        if (!pool.length) return;
+        renderReelCenteredOn(getRandomPoolItem(pool));
     }
 
     // Spin execution
     function spinRoulette() {
         if (isSpinning) return;
+
+        // If player name matches someone in the pending queue, resume their accumulated beerbongs and diet!
+        const enteredName = playerNameInput.value.trim();
+        if (enteredName) {
+            const pendingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === enteredName.toLowerCase());
+            if (pendingIndex >= 0) {
+                currentBeerBongCount = pendingPlayers[pendingIndex].beerbongs;
+                if (pendingPlayers[pendingIndex].diet) {
+                    setDiet(pendingPlayers[pendingIndex].diet);
+                }
+                pendingPlayers.splice(pendingIndex, 1);
+                savePendingPlayers();
+                renderPendingQueue();
+            }
+        }
+
         const pool = getFilteredMenu();
         if (!pool.length) return;
 
         isSpinning = true;
         spinBtn.disabled = true;
+        playerNameInput.disabled = true;
+        vegToggle.disabled = true;
+        pesceToggle.disabled = true;
+        nobeefToggle.disabled = true;
         choiceActions.classList.remove('visible');
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('winner');
@@ -190,22 +335,48 @@
         outcomeDesc.textContent = 'Gør ølbongen klar hvis du rammer ved siden af!';
         outcomeCategory.textContent = 'ROULETTE';
 
-        // Pick target winner
-        const winningItem = pool[Math.floor(Math.random() * pool.length)];
+        // Pick target winner using cryptographically secure hardware entropy
+        const winningItem = getRandomPoolItem(pool);
         currentWinner = winningItem;
 
         // Build strip of 56 items leading up to the winner for an epic high-anticipation spin
+        // Guarantee no two adjacent items on the reel tape are identical
         const totalReelItems = 56;
         const itemsSequence = [];
 
-        for (let i = 0; i < totalReelItems - 1; i++) {
-            itemsSequence.push(pool[Math.floor(Math.random() * pool.length)]);
+        let prevItem = null;
+        for (let i = 0; i < totalReelItems - 2; i++) {
+            let item;
+            do {
+                item = getRandomPoolItem(pool);
+            } while (prevItem && item.id === prevItem.id && pool.length > 1);
+            itemsSequence.push(item);
+            prevItem = item;
         }
+
+        // Ensure the item immediately before the winner is not the winner itself
+        if (itemsSequence.length > 0 && itemsSequence[itemsSequence.length - 1].id === winningItem.id && pool.length > 1) {
+            let replacement;
+            const itemBeforeThat = itemsSequence.length > 1 ? itemsSequence[itemsSequence.length - 2] : null;
+            do {
+                replacement = getRandomPoolItem(pool);
+            } while (
+                (replacement.id === winningItem.id || (itemBeforeThat && replacement.id === itemBeforeThat.id)) &&
+                pool.length > 2
+            );
+            itemsSequence[itemsSequence.length - 1] = replacement;
+        }
+
         // Place winning item at index (totalReelItems - 2) so it centers in the crosshair
         const targetCenterIndex = totalReelItems - 2;
-        itemsSequence[targetCenterIndex] = winningItem;
-        // Add 1 extra trailing item for smooth viewport overflow
-        itemsSequence.push(pool[Math.floor(Math.random() * pool.length)]);
+        itemsSequence.push(winningItem);
+
+        // Add 1 extra trailing item for smooth viewport overflow, ensuring it's not the winner
+        let trailingItem;
+        do {
+            trailingItem = getRandomPoolItem(pool);
+        } while (trailingItem.id === winningItem.id && pool.length > 1);
+        itemsSequence.push(trailingItem);
 
         reelStrip.innerHTML = '';
         itemsSequence.forEach(item => reelStrip.appendChild(createItemElement(item)));
@@ -232,6 +403,10 @@
         // After spin ends
         setTimeout(() => {
             isSpinning = false;
+            playerNameInput.disabled = false;
+            vegToggle.disabled = false;
+            pesceToggle.disabled = false;
+            nobeefToggle.disabled = false;
             outcomePanel.classList.add('winner');
 
             const category = getCategoryForID(winningItem.id);
@@ -255,25 +430,34 @@
 
     // Mechanical ticking simulator with smooth organic deceleration
     function playDeceleratingClicks(totalDuration) {
+        warmAudio();
         const startTime = performance.now();
 
+        // Fire the first tick immediately at 0ms so there is zero initial delay!
+        playTick(1);
+
         function scheduleNext() {
-            if (performance.now() - startTime >= totalDuration - 250) return;
+            const elapsed = performance.now() - startTime;
+            if (elapsed >= totalDuration - 250) return;
+
             playTick(1 + Math.random() * 0.15);
 
-            const progress = (performance.now() - startTime) / totalDuration;
-            // Starts as a gentle rolling rhythm (~60ms) and spaces out to ~750ms+ on the final crawl
-            const delay = 60 + Math.pow(progress, 3.2) * 750;
+            const progress = elapsed / totalDuration;
+            // Starts as a rapid mechanical flutter (~30ms) matching the explosive reel launch,
+            // then decelerates smoothly into the tension-filled ~750ms+ crawl
+            const delay = 30 + Math.pow(progress, 3.2) * 780;
 
             setTimeout(scheduleNext, delay);
         }
-        scheduleNext();
+
+        setTimeout(scheduleNext, 30);
     }
 
     // -------------------------------------------------------------
     // Button Handlers (Spin, Beerbong, Accept)
     // -------------------------------------------------------------
     spinBtn.addEventListener('click', () => {
+        warmAudio();
         spinRoulette();
     });
 
@@ -292,16 +476,22 @@
 
         outcomeCategory.textContent = '🍺 ØLBONG';
         outcomeTitle.textContent = `🍺 Ølbong valgt (${playerName})`;
-        outcomeDesc.textContent = `Tryk på knappen nedenfor når du er klar til dit re-spin.`;
+        outcomeDesc.textContent = `Tryk på 'Spin igen' når du er klar, eller sæt dig i køen så den næste kan spinne imens.`;
         beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
     });
 
     // 🎰 Ølbong bundet - start spin igen (Trin 2)
     btnBeerbongDone.addEventListener('click', () => {
         if (isSpinning) return;
+        warmAudio();
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
         spinRoulette();
+    });
+
+    // 👥 Parkér spiller i ølbong-køen og lad næste person spinne
+    btnBeerbongPark.addEventListener('click', () => {
+        parkCurrentPlayer();
     });
 
     // Fortryd ølbong og behold retten
@@ -335,21 +525,179 @@
         saveOrders();
         renderOrders();
 
-        // Reset turn for next person
+        // Also remove player from pending queue if they were in it
+        pendingPlayers = pendingPlayers.filter(p => p.name.toLowerCase() !== playerName.toLowerCase());
+        savePendingPlayers();
+        renderPendingQueue();
+
+        // Reset turn and dietary preferences to none for next person
         currentBeerBongCount = 0;
         currentWinner = null;
         playerNameInput.value = '';
+        setDiet('none');
         beerbongTally.textContent = '';
         choiceActions.classList.remove('visible');
         beerbongActions.classList.remove('visible');
         outcomePanel.classList.remove('drinking-mode');
         spinBtn.disabled = false;
+        btnBeerbongDone.textContent = '🍻 Ølbong bundet! Spin igen 🎰';
+        btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        renderInitialReel();
 
         outcomePanel.classList.remove('winner');
         outcomeCategory.textContent = 'BESTILLING GEMT!';
         outcomeTitle.textContent = `🍕 ${playerName} har låst sin ret!`;
         outcomeDesc.textContent = 'Indtast næste navn og tryk Spin Hjulet for at fortsætte festen.';
     });
+
+    // -------------------------------------------------------------
+    // Pending Beerbong Queue Logic
+    // -------------------------------------------------------------
+    function savePendingPlayers() {
+        localStorage.setItem('dilans_pending_players', JSON.stringify(pendingPlayers));
+    }
+
+    function renderPendingQueue() {
+        pendingQueueChips.innerHTML = '';
+        if (pendingPlayers.length === 0) {
+            pendingQueueContainer.style.display = 'none';
+            return;
+        }
+
+        pendingQueueContainer.style.display = 'block';
+        pendingPlayers.forEach(p => {
+            const chip = document.createElement('div');
+            chip.className = 'pending-chip';
+            const dietBadge = p.diet === 'veg' ? ' • 🌱' : (p.diet === 'pesce' ? ' • 🐟' : (p.diet === 'nobeef' ? ' • 🥩' : ''));
+            chip.innerHTML = `
+                <button class="pending-chip-btn" title="Genoptag spintur for ${escapeHtml(p.name)}">
+                    <span>🍺 ${escapeHtml(p.name)}</span>
+                    <span class="pending-chip-count">(${p.beerbongs} ølbong${dietBadge})</span>
+                    <span class="pending-chip-arrow">➜ Spin igen</span>
+                </button>
+                <button class="pending-chip-remove" title="Fjern ${escapeHtml(p.name)} fra køen">✕</button>
+            `;
+
+            chip.querySelector('.pending-chip-btn').addEventListener('click', () => {
+                if (isSpinning) return;
+                resumePlayer(p.id);
+            });
+
+            chip.querySelector('.pending-chip-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isSpinning) return;
+                removePendingPlayer(p.id);
+            });
+
+            pendingQueueChips.appendChild(chip);
+        });
+    }
+
+    function parkCurrentPlayer() {
+        if (isSpinning) return;
+        const rawName = playerNameInput.value.trim();
+        const playerName = rawName || `Gæst ${pendingPlayers.length + 1}`;
+
+        const playerDiet = getCurrentDiet();
+        const existingIndex = pendingPlayers.findIndex(p => p.name.toLowerCase() === playerName.toLowerCase());
+        if (existingIndex >= 0) {
+            pendingPlayers[existingIndex].beerbongs = currentBeerBongCount;
+            if (currentWinner) pendingPlayers[existingIndex].lastItem = currentWinner;
+            pendingPlayers[existingIndex].diet = playerDiet;
+        } else {
+            pendingPlayers.push({
+                id: Date.now(),
+                name: playerName,
+                beerbongs: currentBeerBongCount,
+                lastItem: currentWinner,
+                diet: playerDiet
+            });
+        }
+
+        savePendingPlayers();
+        renderPendingQueue();
+
+        // Reset board and dietary preferences to none for next player
+        currentBeerBongCount = 0;
+        currentWinner = null;
+        playerNameInput.value = '';
+        setDiet('none');
+        choiceActions.classList.remove('visible');
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        outcomePanel.classList.remove('winner');
+        spinBtn.disabled = false;
+        btnBeerbongDone.textContent = '🍻 Ølbong bundet! Spin igen 🎰';
+        btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        renderInitialReel();
+
+        outcomeCategory.textContent = 'KLAR TIL NÆSTE';
+        outcomeTitle.textContent = `🍺 ${playerName} sat i ølbong-køen!`;
+        outcomeDesc.textContent = `Ølbong er registreret ovenfor. Hvem er den næste, der skal spinne?`;
+        beerbongTally.textContent = '';
+    }
+
+    function resumePlayer(playerId) {
+        if (isSpinning) return;
+        const p = pendingPlayers.find(item => item.id === playerId);
+        if (!p) return;
+
+        // If current turn has unsaved progress or beerbongs, park it first
+        if (currentBeerBongCount > 0) {
+            parkCurrentPlayer();
+        }
+
+        // Set as active player
+        playerNameInput.value = p.name;
+        currentBeerBongCount = p.beerbongs;
+        currentWinner = p.lastItem;
+
+        // Restore player's saved dietary preference!
+        setDiet(p.diet || 'none');
+
+        // Restore wheel to show the dish this person rolled before taking the beerbong!
+        if (p.lastItem) {
+            renderReelCenteredOn(p.lastItem);
+        }
+
+        // Remove from pending queue
+        pendingPlayers = pendingPlayers.filter(item => item.id !== playerId);
+        savePendingPlayers();
+        renderPendingQueue();
+
+        // Show ready state for re-spin
+        choiceActions.classList.remove('visible');
+        beerbongActions.classList.add('visible');
+        outcomePanel.classList.add('drinking-mode');
+        outcomePanel.classList.remove('winner');
+        spinBtn.disabled = true;
+
+        if (p.lastItem) {
+            const cat = getCategoryForID(p.lastItem.id);
+            outcomeCategory.textContent = `🍺 ${p.name.toUpperCase()} (ØLBONG BUNDET)`;
+            outcomeTitle.textContent = `#${p.lastItem.id} ${p.lastItem.name}`;
+            outcomeDesc.textContent = `Tidligere rullet af ${p.name}. Klar til re-spin eller acceptér retten.`;
+            btnBeerbongDone.textContent = `🍻 Ølbong bundet! Spin for ${p.name} 🎰`;
+            btnBeerbongCancel.textContent = `Fortryd & behold #${p.lastItem.id} ${p.lastItem.name}`;
+        } else {
+            outcomeCategory.textContent = '🍺 ØLBONG BUNDET';
+            outcomeTitle.textContent = `🍺 Velkommen tilbage, ${p.name}!`;
+            outcomeDesc.textContent = `${p.name} har taget ${p.beerbongs} ølbong. Klar til re-spin!`;
+            btnBeerbongDone.textContent = `🍻 Ølbong bundet! Spin for ${p.name} 🎰`;
+            btnBeerbongCancel.textContent = 'Fortryd & behold retten';
+        }
+        beerbongTally.textContent = `🍺 Ølbongs taget af ${p.name}: ${currentBeerBongCount}`;
+    }
+
+    function removePendingPlayer(playerId) {
+        const p = pendingPlayers.find(item => item.id === playerId);
+        if (!p) return;
+        if (confirm(`Vil du fjerne ${p.name} (${p.beerbongs} ølbong) fra køen?`)) {
+            pendingPlayers = pendingPlayers.filter(item => item.id !== playerId);
+            savePendingPlayers();
+            renderPendingQueue();
+        }
+    }
 
     // -------------------------------------------------------------
     // Kitchen Order List Management
@@ -474,9 +822,16 @@
 
     // Copy Order to Clipboard (Aggregated for pizzeria + Detailed per person)
     copyOrdersBtn.addEventListener('click', async () => {
-        if (orders.length === 0) {
+        if (orders.length === 0 && pendingPlayers.length === 0) {
             alert('Der er ingen retter på bestillingslisten endnu.');
             return;
+        }
+
+        // Warn if anyone is still drinking in the ølbong queue
+        if (pendingPlayers.length > 0) {
+            const pendingNames = pendingPlayers.map(p => p.name).join(', ');
+            const proceed = confirm(`⚠️ BEMÆRK: ${pendingNames} er stadig i ølbong-køen og mangler at låse deres ret!\n\nVil du kopiere bestillingen alligevel? (De inkluderes som ventende i bunden af teksten)`);
+            if (!proceed) return;
         }
 
         // 1. Group items for pizzeria
@@ -496,15 +851,30 @@
         let text = `🍕 DILANS ROULETTE BESTILLING (RHK)\n`;
         text += `======================================\n`;
         text += `📋 BESTILLING TIL DILAN (SAMLET):\n`;
-        Object.values(groups).forEach((g) => {
-            const descNote = g.desc ? ` (${g.desc})` : '';
-            text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
-        });
+        if (Object.keys(groups).length > 0) {
+            Object.values(groups).forEach((g) => {
+                const descNote = g.desc ? ` (${g.desc})` : '';
+                text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
+            });
+        } else {
+            text += `(Ingen låste retter endnu)\n`;
+        }
+
         text += `\n👥 HVEM SKAL HAVE HVAD:\n`;
         orders.forEach((o, i) => {
             const beerNote = o.beerbongs > 0 ? ` [${o.beerbongs}x 🍺 ølbong]` : '';
             text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${beerNote}\n`;
         });
+
+        // Mention any players still in the queue so they aren't forgotten
+        if (pendingPlayers.length > 0) {
+            text += `\n⚠️ IKKE FÆRDIGE ENDNU (I ØLBONG-KØEN):\n`;
+            pendingPlayers.forEach(p => {
+                const lastDish = p.lastItem ? ` (sidst rullet #${p.lastItem.id} ${p.lastItem.name})` : ' (ikke rullet endnu)';
+                text += `• ${p.name}: ${p.beerbongs}x 🍺 ølbong${lastDish}\n`;
+            });
+        }
+
         text += `======================================\n`;
         const totalBeers = orders.reduce((sum, o) => sum + (o.beerbongs || 0), 0);
         text += `I alt: ${orders.length} retter | ${totalBeers} ølbongs bundet 🍻\n`;
@@ -523,11 +893,14 @@
 
     // Clear All Orders
     clearOrdersBtn.addEventListener('click', () => {
-        if (orders.length === 0) return;
-        if (confirm('Er du sikker på, at du vil rydde hele køkkenets bestillingsliste?')) {
+        if (orders.length === 0 && pendingPlayers.length === 0) return;
+        if (confirm('Er du sikker på, at du vil rydde hele køkkenets bestillingsliste og ølbong-køen?')) {
             orders = [];
+            pendingPlayers = [];
             saveOrders();
+            savePendingPlayers();
             renderOrders();
+            renderPendingQueue();
         }
     });
 
