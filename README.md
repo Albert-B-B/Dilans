@@ -15,6 +15,8 @@ Det lokale pizzeria, *Dilan's Pizzaria*, har et gigantisk menukort med et hav af
    - Vil du for alt i verden ikke have retten?
    - **Tag en ølbong** 🍺 for at få et re-spin!
    - Rammer du igen noget du ikke vil have? Endnu en ølbong = endnu et re-spin (indtil du fysisk ikke kan drikke mere øl).
+   - **🎯 Frit valg**: Har du taget 3 ølbongs, må du vælge din egen ret fra menuen. Grænsen kan justeres (🎯 *Frit valg efter X ølbong*) hvis den afhænger af personen.
+   - **✏️ Ændringer**: Tag en ekstra ølbong for at lave 1 ændring til din ret (f.eks. *uden tomat*) via **🍺✏️ Ændring** på bestillingslisten.
 5. **Accepter**: Når du overgiver dig til skæbnen, trykker du **Accepter Ret**, og retten føjes til køkkenets samlede bestillingsliste med dit ølbong-badge!
 
 ---
