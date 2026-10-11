@@ -558,6 +558,7 @@
             desc: currentWinner.desc,
             beerbongs: currentBeerBongCount,
             selfPicked: currentSelfPicked,
+            diet: getCurrentDiet(),
             timestamp: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -879,6 +880,7 @@
                     <div class="order-row-right">
                         ${beerBadge}
                         <button class="edit-order-btn" title="Tag en ølbong og lav 1 ændring til ${escapeHtml(order.player)}s ret" data-order-id="${order.id}">🍺✏️ Ændring</button>
+                        <button class="undo-order-btn" title="Fortryd og giv ${escapeHtml(order.player)} sin tur tilbage" data-order-id="${order.id}">↩️ Fortryd</button>
                         <button class="delete-order-btn" title="Fjern ${escapeHtml(order.player)}s bestilling" data-order-id="${order.id}">✕</button>
                     </div>
                 `;
@@ -930,6 +932,7 @@
                         ${beerTag}
                         ${renderChangeTags(entry)}
                         <button class="edit-order-btn small" title="Tag en ølbong og lav 1 ændring til ${escapeHtml(entry.player)}s ret" data-order-id="${entry.id}">🍺✏️</button>
+                        <button class="undo-order-btn small" title="Fortryd og giv ${escapeHtml(entry.player)} sin tur tilbage" data-order-id="${entry.id}">↩️</button>
                         <button class="remove-buyer-btn" title="Fjern ${escapeHtml(entry.player)}s bestilling" data-order-id="${entry.id}">✕</button>
                     </span>
                 `;
@@ -983,6 +986,11 @@
                 addOrderChange(Number(e.currentTarget.getAttribute('data-order-id')));
             });
         });
+        container.querySelectorAll('.undo-order-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                undoOrder(Number(e.currentTarget.getAttribute('data-order-id')));
+            });
+        });
         container.querySelectorAll('.remove-change-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 removeOrderChange(
@@ -1008,6 +1016,56 @@ Hvilken ændring? (f.eks. "uden tomat", "ekstra chili")`);
         playBeerBong();
         saveOrders();
         renderOrders();
+    }
+
+    // ↩️ Fortryd: remove the order and give the player their turn back,
+    // as if they had just spun and not yet pressed "Accepter Ret"
+    function undoOrder(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        if (isSpinning || currentWinner || currentBeerBongCount > 0) {
+            alert('Færdiggør den nuværende tur først (acceptér retten eller sæt spilleren i ølbong-køen), før du fortryder en anden bestilling.');
+            return;
+        }
+
+        const changesNote = order.changes && order.changes.length > 0
+            ? `\n\nÆndringerne (${order.changes.join(', ')}) fjernes, men ølbongsene tæller stadig.`
+            : '';
+        if (!confirm(`↩️ Fortryd ${possessive(order.player)} bestilling af #${order.itemId} ${order.itemName}?\n\n${order.player} får sin tur tilbage og kan acceptere retten igen eller tage en ølbong for at spinne igen.${changesNote}`)) {
+            return;
+        }
+
+        const item = menuItems.find(m => m.id === order.itemId) ||
+            { id: order.itemId, name: order.itemName, desc: order.desc };
+
+        orders = orders.filter(o => o.id !== orderId);
+        saveOrders();
+        renderOrders();
+
+        // Restore the turn
+        playerNameInput.value = order.player;
+        currentBeerBongCount = order.beerbongs || 0;
+        currentWinner = item;
+        currentSelfPicked = false;
+        setDiet(order.diet || 'none');
+        renderReelCenteredOn(item);
+
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        outcomePanel.classList.add('winner');
+        spinBtn.disabled = true;
+
+        outcomeCategory.textContent = `↩️ ${order.player.toUpperCase()} FORTRØD`;
+        outcomeTitle.textContent = `#${item.id} ${item.name}`;
+        outcomeDesc.textContent = `Acceptér retten igen, eller tag en ølbong for at spinne igen.`;
+        beerbongTally.textContent = currentBeerBongCount > 0
+            ? `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`
+            : 'Første spin for denne person';
+
+        updateFreePickButtons();
+        choiceActions.classList.add('visible');
+        outcomePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function removeOrderChange(orderId, index) {
@@ -1160,6 +1218,11 @@ Hvilken ændring? (f.eks. "uden tomat", "ekstra chili")`);
             renderPendingQueue();
         }
     });
+
+    // Danish genitive: "Jonas'" but "Idas"
+    function possessive(name) {
+        return /[sxz]$/i.test(name) ? `${name}'` : `${name}s`;
+    }
 
     function escapeHtml(str) {
         if (!str) return '';

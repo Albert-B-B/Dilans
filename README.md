@@ -18,6 +18,7 @@ Det lokale pizzeria, *Dilan's Pizzaria*, har et gigantisk menukort med et hav af
    - **🎯 Frit valg**: Har du taget 3 ølbongs, må du vælge din egen ret fra menuen. Grænsen kan justeres (🎯 *Frit valg efter X ølbong*) hvis den afhænger af personen.
    - **✏️ Ændringer**: Tag en ekstra ølbong for at lave 1 ændring til din ret (f.eks. *uden tomat*) via **🍺✏️ Ændring** på bestillingslisten.
 5. **Accepter**: Når du overgiver dig til skæbnen, trykker du **Accepter Ret**, og retten føjes til køkkenets samlede bestillingsliste med dit ølbong-badge!
+6. **Fortrudt?** Tryk **↩️ Fortryd** på din bestilling – også længe efter. Du får din tur tilbage og kan acceptere retten igen eller tage en ølbong og spinne igen.
 
 ---
 
@@ -28,7 +29,11 @@ Det lokale pizzeria, *Dilan's Pizzaria*, har et gigantisk menukort med et hav af
   - Gå ud og drik din ølbong imens de næste gæster spinner i mellemtiden!
   - Husker din tidligere rullede ret, antal ølbongs og kostpræference når du genoptager din tur.
 - **📋 Live Køkken Bestillingsliste**:
-  - To visninger: Kronologisk spillerrækkefølge og samlet ordre grupperet til Dilan.
+  - Tre visninger: Kronologisk spillerrækkefølge, samlet ordre grupperet til Dilan og **🏆 Ølbong-top**.
+  - **🏆 Ølbong-top**: Leaderboard over aftenens ølbongs med 🥇🥈🥉 – inkl. dem der stadig drikker i køen.
+  - **✏️ Ændringer** vises på bestillingen og kommer med i den kopierede tekst til Dilan (f.eks. `↳ 1 stk: uden tomat`).
+  - **↩️ Fortryd**: Fjern en bestilling og giv spilleren turen tilbage med samme ret, ølbongs og kostfilter.
+  - **⚠️ Dobbeltnavn-advarsel**: Spørger før der spinnes for et navn, som allerede har en bestilling.
   - Tæller af totalt antal retter og samlede antal ølbongs bundet til festen.
   - **Kopier Bestilling**: Kopiér hele bestillingen pænt formateret til udklipsholderen (inkl. advarsel hvis nogen stadig drikker i ølbong-køen).
   - Gemmes i `localStorage`, så listen ikke mistes hvis siden genindlæses.
