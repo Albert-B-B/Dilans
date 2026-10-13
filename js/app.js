@@ -27,6 +27,13 @@
     const btnBeerbongDone = document.getElementById('btn-beerbong-done');
     const btnBeerbongPark = document.getElementById('btn-beerbong-park');
     const btnBeerbongCancel = document.getElementById('btn-beerbong-cancel');
+    const freePickBtns = document.querySelectorAll('.btn-freepick');
+    const freePickThresholdInput = document.getElementById('freepick-threshold');
+    const freePickModal = document.getElementById('freepick-modal');
+    const freePickClose = document.getElementById('freepick-close');
+    const freePickSubtitle = document.getElementById('freepick-subtitle');
+    const freePickSearch = document.getElementById('freepick-search');
+    const freePickList = document.getElementById('freepick-list');
 
     const outcomePanel = document.getElementById('outcome-panel');
     const outcomeCategory = document.getElementById('outcome-category');
@@ -41,6 +48,7 @@
     const clearOrdersBtn = document.getElementById('clear-orders-btn');
     const tabPlayersBtn = document.getElementById('tab-players');
     const tabSummaryBtn = document.getElementById('tab-summary');
+    const tabLeaderboardBtn = document.getElementById('tab-leaderboard');
 
     let currentOrderTab = localStorage.getItem('dilans_order_tab') || 'players';
 
@@ -64,6 +72,9 @@
     let isSpinning = false;
     let currentBeerBongCount = 0;
     let currentWinner = null;
+    let currentSelfPicked = false;
+
+    let freePickThreshold = parseInt(localStorage.getItem('dilans_freepick_threshold'), 10) || 3;
 
     // Initialize
     initSettings();
@@ -157,6 +168,16 @@
             renderInitialReel();
         });
 
+        // Free pick threshold (some people get a different number of ølbongs)
+        freePickThresholdInput.value = freePickThreshold;
+        freePickThresholdInput.addEventListener('change', () => {
+            const value = parseInt(freePickThresholdInput.value, 10);
+            freePickThreshold = Math.min(20, Math.max(1, value || 3));
+            freePickThresholdInput.value = freePickThreshold;
+            localStorage.setItem('dilans_freepick_threshold', freePickThreshold);
+            updateFreePickButtons();
+        });
+
         // Order View Tabs
         updateTabButtons();
         tabPlayersBtn.addEventListener('click', () => {
@@ -172,11 +193,19 @@
             updateTabButtons();
             renderOrders();
         });
+
+        tabLeaderboardBtn.addEventListener('click', () => {
+            currentOrderTab = 'leaderboard';
+            localStorage.setItem('dilans_order_tab', 'leaderboard');
+            updateTabButtons();
+            renderOrders();
+        });
     }
 
     function updateTabButtons() {
         tabPlayersBtn.classList.toggle('active', currentOrderTab === 'players');
         tabSummaryBtn.classList.toggle('active', currentOrderTab === 'summary');
+        tabLeaderboardBtn.classList.toggle('active', currentOrderTab === 'leaderboard');
     }
 
     function updateMuteUI(muted) {
@@ -424,6 +453,7 @@
             triggerConfetti();
 
             // Show choice actions
+            updateFreePickButtons();
             choiceActions.classList.add('visible');
         }, spinDuration + 100);
     }
@@ -457,6 +487,14 @@
     // Button Handlers (Spin, Beerbong, Accept)
     // -------------------------------------------------------------
     spinBtn.addEventListener('click', () => {
+        if (isSpinning) return;
+        const enteredName = playerNameInput.value.trim();
+        if (enteredName) {
+            const existing = orders.find(o => o.player.toLowerCase() === enteredName.toLowerCase());
+            if (existing && !confirm(`⚠️ ${existing.player} har allerede bestilt #${existing.itemId} ${existing.itemName}.\n\nVil du spinne for ${enteredName} igen alligevel?`)) {
+                return;
+            }
+        }
         warmAudio();
         spinRoulette();
     });
@@ -478,6 +516,7 @@
         outcomeTitle.textContent = `🍺 Ølbong valgt (${playerName})`;
         outcomeDesc.textContent = `Tryk på 'Spin igen' når du er klar, eller sæt dig i køen så den næste kan spinne imens.`;
         beerbongTally.textContent = `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`;
+        updateFreePickButtons();
     });
 
     // 🎰 Ølbong bundet - start spin igen (Trin 2)
@@ -518,6 +557,8 @@
             category: getCategoryForID(currentWinner.id),
             desc: currentWinner.desc,
             beerbongs: currentBeerBongCount,
+            selfPicked: currentSelfPicked,
+            diet: getCurrentDiet(),
             timestamp: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -533,6 +574,8 @@
         // Reset turn and dietary preferences to none for next person
         currentBeerBongCount = 0;
         currentWinner = null;
+        currentSelfPicked = false;
+        updateFreePickButtons();
         playerNameInput.value = '';
         setDiet('none');
         beerbongTally.textContent = '';
@@ -546,7 +589,9 @@
 
         outcomePanel.classList.remove('winner');
         outcomeCategory.textContent = 'BESTILLING GEMT!';
-        outcomeTitle.textContent = `🍕 ${playerName} har låst sin ret!`;
+        outcomeTitle.textContent = newOrder.selfPicked
+            ? `🎯 ${playerName} valgte selv sin ret!`
+            : `🍕 ${playerName} har låst sin ret!`;
         outcomeDesc.textContent = 'Indtast næste navn og tryk Spin Hjulet for at fortsætte festen.';
     });
 
@@ -555,6 +600,7 @@
     // -------------------------------------------------------------
     function savePendingPlayers() {
         localStorage.setItem('dilans_pending_players', JSON.stringify(pendingPlayers));
+        if (currentOrderTab === 'leaderboard') renderOrders();
     }
 
     function renderPendingQueue() {
@@ -620,6 +666,8 @@
         // Reset board and dietary preferences to none for next player
         currentBeerBongCount = 0;
         currentWinner = null;
+        currentSelfPicked = false;
+        updateFreePickButtons();
         playerNameInput.value = '';
         setDiet('none');
         choiceActions.classList.remove('visible');
@@ -687,6 +735,7 @@
             btnBeerbongCancel.textContent = 'Fortryd & behold retten';
         }
         beerbongTally.textContent = `🍺 Ølbongs taget af ${p.name}: ${currentBeerBongCount}`;
+        updateFreePickButtons();
     }
 
     function removePendingPlayer(playerId) {
@@ -698,6 +747,88 @@
             renderPendingQueue();
         }
     }
+
+    // -------------------------------------------------------------
+    // Free Pick (unlocked after enough ølbongs)
+    // -------------------------------------------------------------
+    function updateFreePickButtons() {
+        const unlocked = currentBeerBongCount >= freePickThreshold;
+        freePickBtns.forEach(btn => btn.classList.toggle('unlocked', unlocked));
+    }
+
+    function openFreePick() {
+        if (isSpinning || currentBeerBongCount < freePickThreshold) return;
+        const playerName = playerNameInput.value.trim() || 'Spiller';
+        freePickSubtitle.textContent = `${playerName} har taget ${currentBeerBongCount} ølbong og må vælge frit fra hele menuen.`;
+        freePickSearch.value = '';
+        renderFreePickList();
+        freePickModal.hidden = false;
+        freePickSearch.focus();
+    }
+
+    function closeFreePick() {
+        freePickModal.hidden = true;
+    }
+
+    function renderFreePickList() {
+        const query = freePickSearch.value.trim().toLowerCase();
+        const matches = menuItems.filter(item =>
+            !query ||
+            item.id.toLowerCase() === query ||
+            item.name.toLowerCase().includes(query) ||
+            (item.desc || '').toLowerCase().includes(query)
+        );
+
+        freePickList.innerHTML = '';
+        if (matches.length === 0) {
+            freePickList.innerHTML = '<li class="freepick-empty">Ingen retter matcher søgningen</li>';
+            return;
+        }
+
+        matches.forEach(item => {
+            const li = document.createElement('li');
+            const category = getCategoryForID(item.id);
+            li.innerHTML = `
+                <button class="freepick-item">
+                    <span class="freepick-item-num">#${escapeHtml(item.id)}</span>
+                    <span class="freepick-item-text">
+                        <span class="freepick-item-name">${escapeHtml(item.name)}</span>
+                        ${item.desc ? `<span class="freepick-item-desc">${escapeHtml(item.desc)}</span>` : ''}
+                    </span>
+                    ${category ? `<span class="freepick-item-cat">${escapeHtml(category)}</span>` : ''}
+                </button>
+            `;
+            li.querySelector('.freepick-item').addEventListener('click', () => selectFreePick(item));
+            freePickList.appendChild(li);
+        });
+    }
+
+    function selectFreePick(item) {
+        closeFreePick();
+        currentWinner = item;
+        currentSelfPicked = true;
+        renderReelCenteredOn(item);
+        playWin();
+        triggerConfetti();
+        btnAccept.click();
+    }
+
+    freePickBtns.forEach(btn => btn.addEventListener('click', openFreePick));
+    freePickClose.addEventListener('click', closeFreePick);
+    freePickSearch.addEventListener('input', renderFreePickList);
+    freePickSearch.addEventListener('keydown', (e) => {
+        // Enter picks the first match (handy when typing a menu number)
+        if (e.key === 'Enter') {
+            const first = freePickList.querySelector('.freepick-item');
+            if (first) first.click();
+        }
+    });
+    freePickModal.addEventListener('click', (e) => {
+        if (e.target === freePickModal) closeFreePick();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !freePickModal.hidden) closeFreePick();
+    });
 
     // -------------------------------------------------------------
     // Kitchen Order List Management
@@ -712,6 +843,11 @@
 
         const totalBeers = orders.reduce((sum, o) => sum + (o.beerbongs || 0), 0);
         statBeersEl.textContent = `${totalBeers} ølbong`;
+
+        if (currentOrderTab === 'leaderboard') {
+            renderLeaderboard();
+            return;
+        }
 
         if (orders.length === 0) {
             orderListEl.innerHTML = `
@@ -737,10 +873,14 @@
                         <span class="order-row-num">${index + 1}.</span>
                         <span class="order-row-person">${escapeHtml(order.player)}:</span>
                         <span class="order-row-dish">#${escapeHtml(order.itemId)} ${escapeHtml(order.itemName)}</span>
+                        ${order.selfPicked ? '<span class="order-selfpick-tag" title="Valgt selv efter ølbongs">🎯 Selvvalgt</span>' : ''}
                         ${order.category ? `<span class="order-row-category">(${escapeHtml(order.category)})</span>` : ''}
+                        ${renderChangeTags(order)}
                     </div>
                     <div class="order-row-right">
                         ${beerBadge}
+                        <button class="edit-order-btn" title="Tag en ølbong og lav 1 ændring til ${escapeHtml(order.player)}s ret" data-order-id="${order.id}">🍺✏️ Ændring</button>
+                        <button class="undo-order-btn" title="Fortryd og giv ${escapeHtml(order.player)} sin tur tilbage" data-order-id="${order.id}">↩️ Fortryd</button>
                         <button class="delete-order-btn" title="Fjern ${escapeHtml(order.player)}s bestilling" data-order-id="${order.id}">✕</button>
                     </div>
                 `;
@@ -750,6 +890,8 @@
                     saveOrders();
                     renderOrders();
                 });
+
+                bindChangeButtons(li);
 
                 orderListEl.appendChild(li);
             });
@@ -786,8 +928,11 @@
                     : `<span class="buyer-beer" style="color: var(--text-muted); font-weight: normal;">0 ølbong</span>`;
                 return `
                     <span class="buyer-chip">
-                        <span class="buyer-name">${escapeHtml(entry.player)}</span>
+                        <span class="buyer-name">${escapeHtml(entry.player)}${entry.selfPicked ? ' 🎯' : ''}</span>
                         ${beerTag}
+                        ${renderChangeTags(entry)}
+                        <button class="edit-order-btn small" title="Tag en ølbong og lav 1 ændring til ${escapeHtml(entry.player)}s ret" data-order-id="${entry.id}">🍺✏️</button>
+                        <button class="undo-order-btn small" title="Fortryd og giv ${escapeHtml(entry.player)} sin tur tilbage" data-order-id="${entry.id}">↩️</button>
                         <button class="remove-buyer-btn" title="Fjern ${escapeHtml(entry.player)}s bestilling" data-order-id="${entry.id}">✕</button>
                     </span>
                 `;
@@ -816,6 +961,168 @@
                 });
             });
 
+            bindChangeButtons(li);
+
+            orderListEl.appendChild(li);
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Order Changes (1 extra ølbong = 1 change, e.g. "uden tomat")
+    // -------------------------------------------------------------
+    function renderChangeTags(order) {
+        if (!order.changes || order.changes.length === 0) return '';
+        return order.changes.map((change, i) => `
+            <span class="order-change-tag">
+                ✏️ ${escapeHtml(change)}
+                <button class="remove-change-btn" title="Fortryd ændring" data-order-id="${order.id}" data-change-index="${i}">✕</button>
+            </span>
+        `).join('');
+    }
+
+    function bindChangeButtons(container) {
+        container.querySelectorAll('.edit-order-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                addOrderChange(Number(e.currentTarget.getAttribute('data-order-id')));
+            });
+        });
+        container.querySelectorAll('.undo-order-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                undoOrder(Number(e.currentTarget.getAttribute('data-order-id')));
+            });
+        });
+        container.querySelectorAll('.remove-change-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                removeOrderChange(
+                    Number(e.currentTarget.getAttribute('data-order-id')),
+                    Number(e.currentTarget.getAttribute('data-change-index'))
+                );
+            });
+        });
+    }
+
+    function addOrderChange(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+        const input = prompt(`🍺 ${order.player} tager en ølbong for at ændre #${order.itemId} ${order.itemName}.
+
+Hvilken ændring? (f.eks. "uden tomat", "ekstra chili")`);
+        const change = input ? input.trim() : '';
+        if (!change) return;
+
+        order.changes = order.changes || [];
+        order.changes.push(change);
+        order.beerbongs = (order.beerbongs || 0) + 1;
+        playBeerBong();
+        saveOrders();
+        renderOrders();
+    }
+
+    // ↩️ Fortryd: remove the order and give the player their turn back,
+    // as if they had just spun and not yet pressed "Accepter Ret"
+    function undoOrder(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        if (isSpinning || currentWinner || currentBeerBongCount > 0) {
+            alert('Færdiggør den nuværende tur først (acceptér retten eller sæt spilleren i ølbong-køen), før du fortryder en anden bestilling.');
+            return;
+        }
+
+        const changesNote = order.changes && order.changes.length > 0
+            ? `\n\nÆndringerne (${order.changes.join(', ')}) fjernes, men ølbongsene tæller stadig.`
+            : '';
+        if (!confirm(`↩️ Fortryd ${possessive(order.player)} bestilling af #${order.itemId} ${order.itemName}?\n\n${order.player} får sin tur tilbage og kan acceptere retten igen eller tage en ølbong for at spinne igen.${changesNote}`)) {
+            return;
+        }
+
+        const item = menuItems.find(m => m.id === order.itemId) ||
+            { id: order.itemId, name: order.itemName, desc: order.desc };
+
+        orders = orders.filter(o => o.id !== orderId);
+        saveOrders();
+        renderOrders();
+
+        // Restore the turn
+        playerNameInput.value = order.player;
+        currentBeerBongCount = order.beerbongs || 0;
+        currentWinner = item;
+        currentSelfPicked = false;
+        setDiet(order.diet || 'none');
+        renderReelCenteredOn(item);
+
+        beerbongActions.classList.remove('visible');
+        outcomePanel.classList.remove('drinking-mode');
+        outcomePanel.classList.add('winner');
+        spinBtn.disabled = true;
+
+        outcomeCategory.textContent = `↩️ ${order.player.toUpperCase()} FORTRØD`;
+        outcomeTitle.textContent = `#${item.id} ${item.name}`;
+        outcomeDesc.textContent = `Acceptér retten igen, eller tag en ølbong for at spinne igen.`;
+        beerbongTally.textContent = currentBeerBongCount > 0
+            ? `🍺 Ølbongs taget denne runde: ${currentBeerBongCount}`
+            : 'Første spin for denne person';
+
+        updateFreePickButtons();
+        choiceActions.classList.add('visible');
+        outcomePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function removeOrderChange(orderId, index) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || !order.changes || !order.changes[index]) return;
+        if (!confirm(`Fortryd ændringen "${order.changes[index]}" for ${order.player}? (Ølbongen trækkes fra igen)`)) return;
+
+        order.changes.splice(index, 1);
+        order.beerbongs = Math.max(0, (order.beerbongs || 0) - 1);
+        saveOrders();
+        renderOrders();
+    }
+
+    // -------------------------------------------------------------
+    // Ølbong Leaderboard
+    // -------------------------------------------------------------
+    function renderLeaderboard() {
+        const totals = {};
+        const addBongs = (name, bongs, stillDrinking) => {
+            const key = name.toLowerCase();
+            if (!totals[key]) totals[key] = { name, beerbongs: 0, stillDrinking: false };
+            totals[key].beerbongs += bongs || 0;
+            totals[key].stillDrinking = totals[key].stillDrinking || stillDrinking;
+        };
+        orders.forEach(o => addBongs(o.player, o.beerbongs, false));
+        pendingPlayers.forEach(p => addBongs(p.name, p.beerbongs, true));
+
+        const ranked = Object.values(totals)
+            .filter(t => t.beerbongs > 0)
+            .sort((a, b) => b.beerbongs - a.beerbongs);
+
+        if (ranked.length === 0) {
+            orderListEl.innerHTML = `
+                <li class="empty-orders">
+                    Ingen ølbongs endnu. Hvem tager den første? 🍺
+                </li>
+            `;
+            return;
+        }
+
+        const medals = ['🥇', '🥈', '🥉'];
+        let rank = 0;
+        ranked.forEach((entry, index) => {
+            // Players with the same number of ølbongs share a rank
+            if (index === 0 || entry.beerbongs < ranked[index - 1].beerbongs) rank = index + 1;
+            const li = document.createElement('li');
+            li.className = 'order-row-item leaderboard-row' + (rank <= 3 ? ` rank-${rank}` : '');
+            li.innerHTML = `
+                <div class="order-row-left">
+                    <span class="leaderboard-rank">${medals[rank - 1] || `${rank}.`}</span>
+                    <span class="order-row-person">${escapeHtml(entry.name)}</span>
+                    ${entry.stillDrinking ? '<span class="order-row-category">(drikker stadig 🍻)</span>' : ''}
+                </div>
+                <div class="order-row-right">
+                    <span class="order-beer-tag">🍺 x${entry.beerbongs} ølbong</span>
+                </div>
+            `;
             orderListEl.appendChild(li);
         });
     }
@@ -842,10 +1149,14 @@
                     itemId: o.itemId,
                     itemName: o.itemName,
                     desc: o.desc,
-                    count: 0
+                    count: 0,
+                    changes: []
                 };
             }
             groups[o.itemId].count++;
+            if (o.changes && o.changes.length > 0) {
+                groups[o.itemId].changes.push(o.changes.join(', '));
+            }
         });
 
         let text = `🍕 DILANS ROULETTE BESTILLING (RHK)\n`;
@@ -855,6 +1166,9 @@
             Object.values(groups).forEach((g) => {
                 const descNote = g.desc ? ` (${g.desc})` : '';
                 text += `• ${g.count}x #${g.itemId} ${g.itemName}${descNote}\n`;
+                g.changes.forEach((change) => {
+                    text += `    ↳ 1 stk: ${change}\n`;
+                });
             });
         } else {
             text += `(Ingen låste retter endnu)\n`;
@@ -862,8 +1176,9 @@
 
         text += `\n👥 HVEM SKAL HAVE HVAD:\n`;
         orders.forEach((o, i) => {
-            const beerNote = o.beerbongs > 0 ? ` [${o.beerbongs}x 🍺 ølbong]` : '';
-            text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${beerNote}\n`;
+            const beerNote = (o.beerbongs > 0 ? ` [${o.beerbongs}x 🍺 ølbong]` : '') + (o.selfPicked ? ' [🎯 selvvalgt]' : '');
+            const changeNote = o.changes && o.changes.length > 0 ? ` (${o.changes.join(', ')})` : '';
+            text += `${i + 1}. ${o.player}: #${o.itemId} ${o.itemName}${changeNote}${beerNote}\n`;
         });
 
         // Mention any players still in the queue so they aren't forgotten
@@ -903,6 +1218,11 @@
             renderPendingQueue();
         }
     });
+
+    // Danish genitive: "Jonas'" but "Idas"
+    function possessive(name) {
+        return /[sxz]$/i.test(name) ? `${name}'` : `${name}s`;
+    }
 
     function escapeHtml(str) {
         if (!str) return '';

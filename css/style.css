@@ -819,6 +819,7 @@ body {
 
 .order-tabs {
     display: flex;
+    flex-wrap: wrap;
     background: rgba(11, 15, 25, 0.6);
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
@@ -1171,4 +1172,332 @@ body.tv-mode .order-dish {
         width: 100%;
         justify-content: space-between;
     }
+}
+
+/* =========================================
+   🎯 FRIT VALG (Pick your own after N ølbongs)
+   ========================================= */
+.freepick-setting {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.freepick-threshold {
+    width: 52px;
+    padding: 6px 8px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.freepick-threshold:focus {
+    outline: none;
+    border-color: var(--neon-purple);
+}
+
+.btn-freepick {
+    display: none;
+    flex: 1;
+    width: 100%;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+    transition: all var(--transition-speed);
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-freepick.unlocked {
+    display: flex;
+}
+
+.btn-freepick:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(168, 85, 247, 0.6);
+}
+
+body.tv-mode .btn-freepick {
+    font-size: 1.5rem;
+    padding: 22px 28px;
+}
+
+.order-selfpick-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--neon-purple);
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+.freepick-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(2, 6, 23, 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.freepick-modal[hidden] {
+    display: none;
+}
+
+.freepick-dialog {
+    width: 100%;
+    max-width: 640px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: #111827;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: var(--border-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.freepick-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.freepick-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.freepick-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.freepick-close:hover {
+    color: var(--text-primary);
+}
+
+.freepick-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.freepick-search {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.freepick-search:focus {
+    outline: none;
+    border-color: var(--neon-purple);
+}
+
+.freepick-list {
+    list-style: none;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.freepick-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.freepick-item:hover,
+.freepick-item:focus-visible {
+    outline: none;
+    border-color: var(--neon-purple);
+    background: rgba(168, 85, 247, 0.12);
+}
+
+.freepick-item-num {
+    min-width: 48px;
+    font-weight: 900;
+    color: var(--neon-green);
+}
+
+.freepick-item-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.freepick-item-name {
+    font-weight: 700;
+}
+
+.freepick-item-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.freepick-item-cat {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.freepick-empty {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+
+/* =========================================
+   ✏️ ORDRE-ÆNDRINGER (1 ekstra ølbong = 1 ændring)
+   ========================================= */
+.edit-order-btn {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: var(--neon-amber);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-speed);
+}
+
+.edit-order-btn.small {
+    padding: 2px 6px;
+}
+
+.edit-order-btn:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: var(--neon-amber);
+}
+
+.order-change-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fde68a;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px dashed rgba(245, 158, 11, 0.45);
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+.remove-change-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+.remove-change-btn:hover {
+    color: var(--neon-red);
+}
+
+/* =========================================
+   🏆 ØLBONG LEADERBOARD
+   ========================================= */
+.leaderboard-rank {
+    min-width: 32px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+}
+
+.leaderboard-row.rank-1 {
+    border-color: rgba(250, 204, 21, 0.5);
+    background: rgba(250, 204, 21, 0.08);
+}
+
+.leaderboard-row.rank-2 {
+    border-color: rgba(203, 213, 225, 0.4);
+}
+
+.leaderboard-row.rank-3 {
+    border-color: rgba(217, 119, 6, 0.45);
+}
+
+/* =========================================
+   ↩️ FORTRYD BESTILLING
+   ========================================= */
+.undo-order-btn {
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-speed);
+}
+
+.undo-order-btn.small {
+    padding: 2px 6px;
+}
+
+.undo-order-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Let order rows wrap now that they carry several buttons (phones) */
+.order-row-item {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.order-row-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
 }
